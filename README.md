@@ -2,9 +2,9 @@
 
 ## Requirements
 #### CRUD
-    - Create a credential entry.
+    - Create a credential entry. DONE
     - Fetch existing credential entry.
-    - Update old credential entry.
+    - Update old credential entry. DONE
     - Delete existing credential entry.
     - Dump all data as a JSON file.
 #### Encryption
@@ -15,4 +15,4 @@
 
 ### Command Structure
 - `init` : Setup kosh vault. Ask user for master password and initialize cypto data.
-- `add` : Start interactive session to add a new credential.
+- `add` : Start interactive session to add a new credential. Update credential if it already exists.

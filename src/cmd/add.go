@@ -56,15 +56,17 @@ func AddCmd(args ...string) {
 	}
 
 	// Get credential details
-	var title, username, secret string
-	fmt.Print("Title: ")
-	fmt.Scanln(&title)
+	var group, username, secret string
+	fmt.Print("Group: ")
+	fmt.Scanln(&group)
 	fmt.Print("Username: ")
 	fmt.Scanln(&username)
 	fmt.Print("Secret: ")
 	secret1, _ := term.ReadPassword(int(os.Stdin.Fd()))
+	fmt.Println()
 	fmt.Print("Confirm Secret: ")
 	secret2, _ := term.ReadPassword(int(os.Stdin.Fd()))
+	fmt.Println()
 
 	if string(secret1) != string(secret2) {
 		fmt.Println("[Error] entered secrets do not match")
@@ -91,7 +93,7 @@ func AddCmd(args ...string) {
 	cipher := aead.Seal(nil, nonce, []byte(secret), nil)
 
 	credential := Credential{
-		Group:        title,
+		Group:        group,
 		User:         username,
 		Nonce:        base64.StdEncoding.EncodeToString(nonce),
 		Secret:       base64.StdEncoding.EncodeToString(cipher),

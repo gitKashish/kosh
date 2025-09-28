@@ -11,3 +11,8 @@
     - Use a public key to create, entries.
     - Use a private key to fetch, update or delete entries.
     - use ECC
+
+
+### Command Structure
+- `init` : Setup kosh vault. Ask user for master password and initialize cypto data.
+- `add` : Start interactive session to add a new credential.

@@ -56,7 +56,7 @@ func AddCmd(args ...string) {
 	}
 
 	// Get credential details
-	var group, username, secret string
+	var group, username string
 	fmt.Print("Group: ")
 	fmt.Scanln(&group)
 	fmt.Print("Username: ")
@@ -73,14 +73,18 @@ func AddCmd(args ...string) {
 		return
 	}
 
-	secret = string(secret1)
+	secret := string(secret1)
 
-	// Encrypt credential with public key
-	// Derive shared secrete from vault public key + ephemeral private key
+	// generate ephemeral key pair
 	var ephPriv [32]byte
 	rand.Read(ephPriv[:])
 	ephPub, _ := curve25519.X25519(ephPriv[:], curve25519.Basepoint)
-	sharedSecret, _ := curve25519.X25519(ephPriv[:], []byte(vault.PublicKey))
+
+	// generate symmetric shared secret
+	publicKey, _ := base64.StdEncoding.DecodeString(vault.PublicKey)
+	sharedSecret, _ := curve25519.X25519(ephPriv[:], publicKey)
+
+	// hash to get 32 bit consistent key for ChaCha
 	key := sha256.Sum256(sharedSecret)
 
 	aead, err := chacha20poly1305.NewX(key[:])
@@ -97,13 +101,12 @@ func AddCmd(args ...string) {
 		User:         username,
 		Nonce:        base64.StdEncoding.EncodeToString(nonce),
 		Secret:       base64.StdEncoding.EncodeToString(cipher),
-		EphemeralPub: base64.RawStdEncoding.EncodeToString(ephPub),
+		EphemeralPub: base64.StdEncoding.EncodeToString(ephPub),
 	}
 
 	// Save credential
 	if err := saveCredential(&credential); err != nil {
 		fmt.Println("[Error] unable to save credential")
-		fmt.Printf("[DEBUG] error: %s", err)
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.design/x/clipboard"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/curve25519"
 	"golang.org/x/term"
@@ -49,6 +50,7 @@ func GetCommand(args ...string) {
 		return
 	}
 
+	var found bool
 	for _, group := range groups {
 		if group.IsDir() {
 			continue
@@ -82,17 +84,22 @@ func GetCommand(args ...string) {
 						fmt.Println("[Error] ", err.Error())
 						os.Exit(1)
 					} else {
-						// TODO: copy directly to clipboard instead of printing
-						fmt.Println("secret: ", passkey)
-						os.Exit(0)
+						copyToClipboard(passkey)
+						found = true
+						fmt.Println("[Info] credential copied to clipboard.")
+						break
 					}
 				}
 			}
-			fmt.Println("[Info] no matching credential found")
-			os.Exit(0)
+			if !found {
+				break
+			}
 		}
 	}
-	fmt.Println("[Info] no matching credential found")
+
+	if !found {
+		fmt.Println("[Info] no matching credential found")
+	}
 	os.Exit(0)
 }
 
@@ -136,4 +143,13 @@ func retrieveCredential(credential Credential, vault Vault, masterPassword []byt
 	}
 
 	return string(passkey), nil
+}
+
+func copyToClipboard(content string) {
+	err := clipboard.Init()
+	if err != nil {
+		panic(err)
+	}
+
+	clipboard.Write(clipboard.FmtText, []byte(content))
 }

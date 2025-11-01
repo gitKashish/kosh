@@ -7,7 +7,7 @@ import (
 	"github.com/gitKashish/kosh/src/internals/model"
 )
 
-func GetCredentialByLabelAndUser(label, user string) *model.Credential {
+func GetCredentialByLabelAndUser(label, user string) (*model.Credential, error) {
 	var credential model.Credential
 	stmt, err := db.Prepare(`
 		SELECT label, user, secret, ephemeral, nonce FROM credentials
@@ -15,24 +15,22 @@ func GetCredentialByLabelAndUser(label, user string) *model.Credential {
 	`)
 	if err != nil {
 		fmt.Println("[Error] failed to prepare statement to fetch credential info")
-		fmt.Printf("[Debug] %s\n", err.Error())
-		return nil
+		return nil, err
 	}
 
 	err = stmt.QueryRow(label, user).Scan(&credential.Label, &credential.User, &credential.Secret, &credential.Ephemeral, &credential.Nonce)
 
 	if err == sql.ErrNoRows {
 		fmt.Println("[Error] no matching credential found")
-		return nil
+		return nil, err
 	}
 
 	if err != nil {
 		fmt.Println("[Error] unable to fetch credential")
-		fmt.Printf("[Debug] %s\n", err.Error())
-		return nil
+		return nil, err
 	}
 
-	return &credential
+	return &credential, nil
 }
 
 func AddCredential(credential *model.Credential) error {

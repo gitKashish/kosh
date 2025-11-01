@@ -3,7 +3,6 @@ package cmd
 import (
 	"crypto/sha256"
 	"fmt"
-	"os"
 
 	"github.com/gitKashish/kosh/src/internals/crypto"
 	"github.com/gitKashish/kosh/src/internals/dao"
@@ -13,13 +12,18 @@ import (
 )
 
 func init() {
-	Commands["get"] = GetCommand
+	Commands["get"] = CommandInfo{
+		Exec:        GetCmd,
+		Description: "Retrieve a stored credential",
+		Usage:       "kosh get <label> <user>",
+	}
 }
 
-func GetCommand(args ...string) {
+func GetCmd(args ...string) error {
 	if len(args) < 2 {
-		Help()
-		os.Exit(2)
+		fmt.Println("[Error] missing arguments")
+		HelpCmd()
+		return fmt.Errorf("missing arguments, got %d, want %d", len(args), 2)
 	}
 
 	desiredGroup := args[0]
@@ -29,33 +33,36 @@ func GetCommand(args ...string) {
 	vault, err := dao.GetVaultInfo()
 	if err != nil {
 		fmt.Println("[Error] unable to get vault info")
-		return
+		return err
 	}
 	vaultData := vault.GetRawData()
 
 	// fetch credential info
-	credential := dao.GetCredentialByLabelAndUser(desiredGroup, desiredUser)
+	credential, err := dao.GetCredentialByLabelAndUser(desiredGroup, desiredUser)
+	if err != nil {
+		return err
+	}
+
 	if credential == nil {
 		// credential does not exist
 		fmt.Println("[Error] credential does not exist")
-		return
+		return nil
 	}
 
 	// get password from user
 	password, err := interaction.ReadSecretField("master password > ")
 	if err != nil {
 		fmt.Println("[Error] unable to read password")
-		fmt.Printf("[Debug] %s\n", err.Error())
+		return err
 	}
 
 	secret, err := extractSecret(credential.GetRawData(), vaultData, []byte(password))
 	if err != nil {
-		fmt.Printf("[Debug] %s\n", err.Error())
-		return
+		return err
 	}
 	interaction.CopyToClipboard(secret)
 	fmt.Println("[Info] copied secret to clipboard")
-
+	return nil
 }
 
 func extractSecret(credential *model.CredentialData, vault *model.VaultData, masterPassword []byte) ([]byte, error) {

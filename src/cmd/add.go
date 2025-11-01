@@ -13,15 +13,19 @@ import (
 )
 
 func init() {
-	Commands["add"] = AddCmd
+	Commands["add"] = CommandInfo{
+		Exec:        AddCmd,
+		Description: "Add a new credential",
+		Usage:       "kosh add",
+	}
 }
 
-func AddCmd(args ...string) {
+func AddCmd(args ...string) error {
 	// load vault info
 	vault, err := dao.GetVaultInfo()
 	if err != nil {
 		fmt.Println("[Error] error fetching vault info")
-		return
+		return nil
 	}
 	vaultData := vault.GetRawData()
 
@@ -29,7 +33,7 @@ func AddCmd(args ...string) {
 	password, err := interaction.ReadSecretField("master password > ")
 	if err != nil {
 		fmt.Println("[Error] cannot read password")
-		return
+		return nil
 	}
 
 	// verify master password and get encryption info
@@ -37,7 +41,7 @@ func AddCmd(args ...string) {
 
 	if _, err := crypto.DecryptPrivateKey(unlockKey, vaultData.Secret, vaultData.Nonce); err != nil {
 		fmt.Println("[Error] master password is incorrect")
-		return
+		return err
 	}
 
 	// get credential details
@@ -46,14 +50,17 @@ func AddCmd(args ...string) {
 	secret, err := interaction.ReadSecretField("enter secret > ")
 	if err != nil {
 		fmt.Println("[Error] cannot read secret")
+		return err
 	}
 	confirm, err := interaction.ReadSecretField("confirm secret > ")
 	if err != nil {
 		fmt.Println("[Error] cannot read confirmation")
+		return err
 	}
 
 	if secret != confirm {
 		fmt.Println("[Error] entered secrets do not match")
+		return nil
 	}
 
 	ephemeralPrivateKey, ephemeralPublicKey := crypto.GenerateAsymmetricKeyPair()
@@ -75,8 +82,9 @@ func AddCmd(args ...string) {
 	}
 
 	// save credential
-	if err := dao.AddCredential(credential.EncodeToString()); err != nil {
+	err = dao.AddCredential(credential.EncodeToString())
+	if err != nil {
 		fmt.Println("[Error] unable to save credential")
-		fmt.Printf("[Debug] %s\n", err.Error())
 	}
+	return err
 }

@@ -10,16 +10,30 @@ import (
 )
 
 func init() {
-	Commands["init"] = InitCmd
+	Commands["init"] = CommandInfo{
+		Exec:        InitCmd,
+		Description: "Initialize vault with master password.",
+		Usage:       "kosh init",
+	}
 }
 
 // InitCmd sets up the vault, generates crypto information based on user's provided
 // master password
-func InitCmd(args ...string) {
+func InitCmd(args ...string) error {
+	// Check if vault is already initialized
+	initialized, err := dao.IsVaultInitialized()
+	if err != nil {
+		fmt.Println("[Error] failed to check vault initialization")
+		return err
+	}
+	if initialized {
+		fmt.Println("[Info] vault already initialized")
+		return nil
+	}
+
 	password, err := getPasswordWithConfirmation()
 	if err != nil {
-		fmt.Printf("[Error] %s\n", err.Error())
-		return
+		return err
 	}
 
 	// Generate random salt for generating key
@@ -45,8 +59,8 @@ func InitCmd(args ...string) {
 	err = dao.InitializeVault(*vault.EncodeToString())
 	if err != nil {
 		fmt.Println("[Error] error initializing vault")
-		fmt.Printf("[Debug] %s\n", err.Error())
 	}
+	return err
 }
 
 // getPasswordWithConfirmation gets password value from user from terminal. It gets password using silent text input and asks for

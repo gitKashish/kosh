@@ -40,17 +40,6 @@ func IsVaultInitialized() (bool, error) {
 
 // InitializeVault adds a valid record to the vault config
 func InitializeVault(vault model.Vault) error {
-	initialized, err := IsVaultInitialized()
-	if err != nil {
-		fmt.Println("[Error] failed to check vault initialization")
-		return err
-	}
-
-	if initialized {
-		fmt.Println("[Info] vault already initialized")
-		return fmt.Errorf("vault already initialized")
-	}
-
 	// Start transaction
 	transaction, err := db.Begin()
 	if err != nil {

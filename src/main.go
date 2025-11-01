@@ -18,7 +18,7 @@ func main() {
 	defer dao.Close()
 
 	if len(os.Args) < 2 {
-		cmd.Help()
+		cmd.HelpCmd()
 		os.Exit(2)
 	}
 
@@ -26,10 +26,11 @@ func main() {
 	args := os.Args[2:]
 
 	if c, ok := cmd.Commands[command]; ok {
-		c(args...)
+		if err := c.Exec(args...); err != nil {
+			fmt.Printf("[Debug] %s\n", err.Error())
+		}
 	} else {
 		fmt.Printf("[Error] unknown command %s\n", command)
-		cmd.Help()
-		os.Exit(2)
+		cmd.HelpCmd()
 	}
 }

@@ -2,17 +2,14 @@ package cmd
 
 import (
 	"crypto/sha256"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
-	"golang.design/x/clipboard"
-	"golang.org/x/crypto/chacha20poly1305"
+	"github.com/gitKashish/kosh/src/internals/crypto"
+	"github.com/gitKashish/kosh/src/internals/dao"
+	"github.com/gitKashish/kosh/src/internals/interaction"
+	"github.com/gitKashish/kosh/src/internals/model"
 	"golang.org/x/crypto/curve25519"
-	"golang.org/x/term"
 )
 
 func init() {
@@ -28,128 +25,56 @@ func GetCommand(args ...string) {
 	desiredGroup := args[0]
 	desiredUser := args[1]
 
-	home, _ := os.UserHomeDir()
-
-	// Check if current vault exists, if not prompt to create one.
-	vaultPath := filepath.Join(home, ".kosh", "vault.json")
-	data, err := os.ReadFile(vaultPath)
+	// fetch vault info
+	vault, err := dao.GetVaultInfo()
 	if err != nil {
-		fmt.Println("[Error] vault not found, run `kosh init` first")
+		fmt.Println("[Error] unable to get vault info")
+		return
+	}
+	vaultData := vault.GetRawData()
+
+	// fetch credential info
+	credential := dao.GetCredentialByLabelAndUser(desiredGroup, desiredUser)
+	if credential == nil {
+		// credential does not exist
+		fmt.Println("[Error] credential does not exist")
 		return
 	}
 
-	// Unmarshal vault data
-	var vault Vault
-	json.Unmarshal(data, &vault)
-
-	// Check if requested group and user exist or not
-	credPath := filepath.Join(home, ".kosh", "creds")
-	groups, err := os.ReadDir(credPath)
+	// get password from user
+	password, err := interaction.ReadSecretField("master password > ")
 	if err != nil {
-		fmt.Println("[Error] unable to retrieve creds at ", credPath)
+		fmt.Println("[Error] unable to read password")
+		fmt.Printf("[Debug] %s\n", err.Error())
+	}
+
+	secret, err := extractSecret(credential.GetRawData(), vaultData, []byte(password))
+	if err != nil {
+		fmt.Printf("[Debug] %s\n", err.Error())
 		return
 	}
+	interaction.CopyToClipboard(secret)
+	fmt.Println("[Info] copied secret to clipboard")
 
-	var found bool
-	for _, group := range groups {
-		if group.IsDir() {
-			continue
-		}
-
-		groupName := strings.TrimSuffix(group.Name(), filepath.Ext(group.Name()))
-		if groupName == desiredGroup {
-			data, err := os.ReadFile(filepath.Join(credPath, group.Name()))
-			if err != nil {
-				fmt.Println("[Error] unable to read credential group")
-				return
-			}
-
-			// unmarshal JSON
-			var credentials []Credential
-			if err := json.Unmarshal(data, &credentials); err != nil {
-				fmt.Println("[Error] failed to unmarshall credentials")
-				return
-			}
-
-			for _, credential := range credentials {
-				if credential.User == desiredUser {
-					// ask master password
-					fmt.Print("Enter master password: ")
-					password, _ := term.ReadPassword(int(os.Stdin.Fd()))
-					fmt.Println()
-
-					// get credential from master password
-					passkey, err := retrieveCredential(credential, vault, password)
-					if err != nil {
-						fmt.Println("[Error] ", err.Error())
-						os.Exit(1)
-					} else {
-						copyToClipboard(passkey)
-						found = true
-						fmt.Println("[Info] credential copied to clipboard.")
-						break
-					}
-				}
-			}
-			if !found {
-				break
-			}
-		}
-	}
-
-	if !found {
-		fmt.Println("[Info] no matching credential found")
-	}
-	os.Exit(0)
 }
 
-func retrieveCredential(credential Credential, vault Vault, masterPassword []byte) (string, error) {
+func extractSecret(credential *model.CredentialData, vault *model.VaultData, masterPassword []byte) ([]byte, error) {
 	// decrypt private key using master password
-	salt, _ := base64.StdEncoding.DecodeString(vault.Salt)
-	unlockKey := deriveKey(masterPassword, salt)
-	privateKey, err := decryptPrivateKey(unlockKey, vault.PrivateKey)
+	unlockKey := crypto.GenerateSymmetricKey(masterPassword, vault.Salt)
+	privateKey, err := crypto.DecryptPrivateKey(unlockKey, vault.Secret, vault.Nonce)
 	if err != nil {
 		fmt.Println("[Error] master password is incorrect")
-		os.Exit(126)
+		return nil, err
 	}
 
 	// decrypt credential using private key
-	ephPub, _ := base64.StdEncoding.DecodeString(credential.EphemeralPub)
-	sharedSecret, err := curve25519.X25519(privateKey, ephPub)
+	sharedSecret, err := curve25519.X25519(privateKey, credential.Ephemeral)
 	if err != nil {
 		fmt.Println("[Error] failed to decrypt credential")
-		return "", err
+		return nil, err
 	}
 
 	key := sha256.Sum256(sharedSecret)
 
-	aead, err := chacha20poly1305.NewX(key[:])
-	if err != nil {
-		fmt.Println("[Error] failed to create AEAD")
-		return "", err
-	}
-
-	nonce, _ := base64.StdEncoding.DecodeString(credential.Nonce)
-	if len(nonce) != aead.NonceSize() {
-		fmt.Println("[Error] invalid credential nonce")
-		return "", err
-	}
-
-	cipher, _ := base64.StdEncoding.DecodeString(credential.Secret)
-	passkey, err := aead.Open(nil, nonce, cipher, nil)
-	if err != nil {
-		fmt.Println("[Error] failed to open aead")
-		return "", err
-	}
-
-	return string(passkey), nil
-}
-
-func copyToClipboard(content string) {
-	err := clipboard.Init()
-	if err != nil {
-		panic(err)
-	}
-
-	clipboard.Write(clipboard.FmtText, []byte(content))
+	return crypto.DecryptSecret(key[:], credential.Secret, credential.Nonce)
 }

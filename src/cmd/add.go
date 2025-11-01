@@ -1,166 +1,82 @@
 package cmd
 
 import (
-	"crypto/rand"
 	"crypto/sha256"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"slices"
-	"strings"
 
-	"golang.org/x/crypto/argon2"
-	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/curve25519"
-	"golang.org/x/term"
-)
 
-type Credential struct {
-	Group        string `json:"group"`
-	User         string `json:"user"`
-	Secret       string `json:"secret"`
-	EphemeralPub string `json:"ephemeral_pub"`
-	Nonce        string `json:"nonce"`
-}
+	"github.com/gitKashish/kosh/src/internals/crypto"
+	"github.com/gitKashish/kosh/src/internals/dao"
+	"github.com/gitKashish/kosh/src/internals/interaction"
+	"github.com/gitKashish/kosh/src/internals/model"
+)
 
 func init() {
 	Commands["add"] = AddCmd
 }
 
 func AddCmd(args ...string) {
-	// Load vault info
-	home, _ := os.UserHomeDir()
-	vaultPath := filepath.Join(home, ".kosh", "vault.json")
-	data, err := os.ReadFile(vaultPath)
+	// load vault info
+	vault, err := dao.GetVaultInfo()
 	if err != nil {
-		fmt.Println("[Error] vault not found, run `kosh init` first")
+		fmt.Println("[Error] error fetching vault info")
+		return
+	}
+	vaultData := vault.GetRawData()
+
+	// get master password
+	password, err := interaction.ReadSecretField("master password > ")
+	if err != nil {
+		fmt.Println("[Error] cannot read password")
 		return
 	}
 
-	var vault Vault
-	json.Unmarshal(data, &vault)
+	// verify master password and get encryption info
+	unlockKey := crypto.GenerateSymmetricKey([]byte(password), vaultData.Salt)
 
-	fmt.Print("Enter master password: ")
-	password, _ := term.ReadPassword(int(os.Stdin.Fd()))
-	fmt.Println()
-
-	// Verify master password and get encryption info
-	salt, _ := base64.StdEncoding.DecodeString(vault.Salt)
-	unlockKey := deriveKey(password, salt)
-
-	if _, err := decryptPrivateKey(unlockKey, vault.PrivateKey); err != nil {
+	if _, err := crypto.DecryptPrivateKey(unlockKey, vaultData.Secret, vaultData.Nonce); err != nil {
 		fmt.Println("[Error] master password is incorrect")
-		os.Exit(126)
-	}
-
-	// Get credential details
-	var group, username string
-	fmt.Print("Group: ")
-	fmt.Scanln(&group)
-	fmt.Print("Username: ")
-	fmt.Scanln(&username)
-	fmt.Print("Secret: ")
-	secret1, _ := term.ReadPassword(int(os.Stdin.Fd()))
-	fmt.Println()
-	fmt.Print("Confirm Secret: ")
-	secret2, _ := term.ReadPassword(int(os.Stdin.Fd()))
-	fmt.Println()
-
-	if string(secret1) != string(secret2) {
-		fmt.Println("[Error] entered secrets do not match")
 		return
 	}
 
-	secret := string(secret1)
+	// get credential details
+	label := interaction.ReadStringField("enter label > ")
+	username := interaction.ReadStringField("enter username > ")
+	secret, err := interaction.ReadSecretField("enter secret > ")
+	if err != nil {
+		fmt.Println("[Error] cannot read secret")
+	}
+	confirm, err := interaction.ReadSecretField("confirm secret > ")
+	if err != nil {
+		fmt.Println("[Error] cannot read confirmation")
+	}
 
-	// generate ephemeral key pair
-	var ephPriv [32]byte
-	rand.Read(ephPriv[:])
-	ephPub, _ := curve25519.X25519(ephPriv[:], curve25519.Basepoint)
+	if secret != confirm {
+		fmt.Println("[Error] entered secrets do not match")
+	}
+
+	ephemeralPrivateKey, ephemeralPublicKey := crypto.GenerateAsymmetricKeyPair()
 
 	// generate symmetric shared secret
-	publicKey, _ := base64.StdEncoding.DecodeString(vault.PublicKey)
-	sharedSecret, _ := curve25519.X25519(ephPriv[:], publicKey)
+	encryptionKey, _ := curve25519.X25519(ephemeralPrivateKey, vaultData.PublicKey)
 
-	// hash to get 32 bit consistent key for ChaCha
-	key := sha256.Sum256(sharedSecret)
+	// hash to get 32 bit consistent key for encryption
+	key := sha256.Sum256(encryptionKey)
 
-	aead, err := chacha20poly1305.NewX(key[:])
-	if err != nil {
-		fmt.Printf("[Error] %s", err)
-		panic(err)
-	}
-	nonce := make([]byte, aead.NonceSize())
-	rand.Read(nonce)
-	cipher := aead.Seal(nil, nonce, []byte(secret), nil)
+	cipher, nonce := crypto.EncryptSecret(key[:], []byte(secret))
 
-	credential := Credential{
-		Group:        group,
-		User:         username,
-		Nonce:        base64.StdEncoding.EncodeToString(nonce),
-		Secret:       base64.StdEncoding.EncodeToString(cipher),
-		EphemeralPub: base64.StdEncoding.EncodeToString(ephPub),
+	credential := model.CredentialData{
+		Label:     label,
+		User:      username,
+		Nonce:     nonce,
+		Secret:    cipher,
+		Ephemeral: ephemeralPublicKey,
 	}
 
-	// Save credential
-	if err := saveCredential(&credential); err != nil {
+	// save credential
+	if err := dao.AddCredential(credential.EncodeToString()); err != nil {
 		fmt.Println("[Error] unable to save credential")
+		fmt.Printf("[Debug] %s\n", err.Error())
 	}
-}
-
-func deriveKey(password, salt []byte) []byte {
-	return argon2.IDKey(password, salt, 1, 64*1024, 4, 32)
-}
-
-func decryptPrivateKey(unlockKey []byte, privKeyData struct {
-	Nonce  string `json:"nonce"`
-	Cipher string `json:"cipher"`
-}) ([]byte, error) {
-	nonce, _ := base64.StdEncoding.DecodeString(privKeyData.Nonce)
-	cipher, _ := base64.StdEncoding.DecodeString(privKeyData.Cipher)
-
-	aead, _ := chacha20poly1305.NewX(unlockKey)
-	return aead.Open(nil, nonce, cipher, nil)
-}
-
-func saveCredential(credential *Credential) error {
-	// Ensure that `creds` directory exists
-	home, _ := os.UserHomeDir()
-	dir := filepath.Join(home, ".kosh", "creds")
-	os.MkdirAll(dir, 0700)
-
-	// Get existing group file (if it exists)
-	groupFile := filepath.Join(dir, fmt.Sprintf("%s.json", credential.Group))
-
-	var credentials []Credential
-	if _, err := os.Stat(groupFile); err == nil {
-		existing, _ := os.ReadFile(groupFile)
-		json.Unmarshal(existing, &credentials)
-
-		// Check if creds for the username already exist
-		for idx, cred := range credentials {
-			if cred.User == credential.User {
-				var overrideInput string
-				fmt.Printf("[Info] credentials for %s alread exist\n", cred.User)
-				fmt.Print("Overwrite the credentials? (y/N): ")
-				fmt.Scanln(&overrideInput)
-				if strings.ToLower(overrideInput) == "y" {
-					credentials = slices.Delete(credentials, idx, idx+1)
-				} else {
-					return nil
-				}
-				break
-			}
-		}
-	}
-
-	// Append new credential
-	credentials = append(credentials, *credential)
-
-	// Save back to file
-	credData, _ := json.MarshalIndent(credentials, "", "  ")
-	os.WriteFile(groupFile, credData, 0600)
-	return nil
 }

@@ -5,9 +5,18 @@ import (
 	"os"
 
 	"github.com/gitKashish/kosh/src/cmd"
+	"github.com/gitKashish/kosh/src/internals/dao"
 )
 
 func main() {
+	// initialize connection with the database
+	if err := dao.Initialize(); err != nil {
+		fmt.Println("[Error] error connecting to database")
+		fmt.Printf("[Debug] %s", err.Error())
+		os.Exit(1)
+	}
+	defer dao.Close()
+
 	if len(os.Args) < 2 {
 		cmd.Help()
 		os.Exit(2)

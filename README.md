@@ -1,31 +1,109 @@
-# Pluto-Vault
+# Kosh — Secure Password Manager
 
-## Requirements
-#### CRUD
-    - Create a credential entry. DONE
-    - Fetch existing credential entry.
-    - Update old credential entry. DONE
-    - Delete existing credential entry.
-    - Dump all data as a JSON file.
+**Kosh** is a command-line password manager that securely stores credentials in an encrypted local vault using **SQLite**.
+It employs modern cryptographic standards such as **Curve25519**, **ChaCha20-Poly1305**, and **Argon2** to ensure your data remains private and protected.
 
-#### Credential Encryption
-    1. Get vault's public key.
-    2. Create an ephemeral key pair for generating a symmetric key. (curve25519)
-    3. Generate a symmetric key using ephemeral private key and vault's public key. (curve25519)
-    4. Symmetric key is hashed to get 32 byte key for ChaCha. (sha256)
-    5. generate ChaCha AEAD. (chacha20poly1305)
-    6. Randomly generate a Nonce for uniqueness.
-    7. AEAD is used to encrypt the plain text secrete with the Nonce.
-    8. Store Nonce, Ephemeral Public Key and the Cipher as base64 encoded strings.
+---
 
-#### Credential Decryption
-    1. Decrypt the vault's private key using the user entered master password and the salt. (argon2)
-    2. Generate the symmetric key for the credential with the vault's private key and credential's ephemeral public key. (curve25519)
-    3. Hash the symmetric key to get a 32 byte key for ChaCha. (sha256)
-    4. generate ChaCha AEAD using the symmetric key. (chacha20poly1305)
-    5. Decrypt the cipher with the AEAD alongside the stored Nonce.
+## Features
 
-### Command Structure
-- `init` : Setup kosh vault. Ask user for master password and initialize cypto data.
-- `add` : Start interactive session to add a new credential. Update credential if it already exists.
-- `get` : Retrieve a stored secret by mentioning the group and the username for that credential.
+* Secure end-to-end encryption for all credentials
+* Local, lightweight SQLite-based storage
+* Master password protection for the vault
+* Simple, cross-platform CLI interface
+* Fast and dependency-free operation
+
+---
+
+## Installation
+
+### From Source
+
+```bash
+git clone https://github.com/gitKashish/kosh.git
+cd kosh
+./build.sh
+```
+
+### Using Go Install (Recommended)
+
+```bash
+go install github.com/gitKashish/kosh@latest
+```
+
+---
+
+## Usage
+
+### Get Help
+
+Get command reference and usage details:
+
+```bash
+kosh help
+```
+
+### Initialize Vault
+
+Set up a new vault and master password:
+
+```bash
+kosh init
+```
+
+### Add Credential
+
+Add or update a stored credential through an interactive prompt:
+
+```bash
+kosh add
+```
+
+### Retrieve Credential
+
+Fetch a credential by label (group) and username:
+
+```bash
+kosh get <label> <user>
+```
+
+---
+
+## How It Works
+
+### Credential Encryption
+
+1. Retrieve the vault’s public key.
+2. Generate an ephemeral key pair for session key exchange.
+3. Derive a symmetric key using Curve25519 with the vault’s public key and ephemeral private key.
+4. Hash the symmetric key with SHA-256 to obtain a 32-byte key for ChaCha20.
+5. Create a ChaCha20-Poly1305 AEAD instance.
+6. Generate a random nonce.
+7. Encrypt the plaintext secret using AEAD and the nonce.
+8. Store the nonce, ephemeral public key, and cipher text (all base64-encoded) in the database.
+
+### Credential Decryption
+
+1. Decrypt the vault’s private key using the master password with Argon2.
+2. Derive the symmetric key using the vault’s private key and the stored ephemeral public key.
+3. Hash the symmetric key with SHA-256 to recreate the ChaCha key.
+4. Decrypt the cipher text using the AEAD and nonce.
+
+---
+
+## Command Reference
+
+| Command                   | Description                                   |
+| ------------------------- | --------------------------------------------- |
+| `kosh help`               | Display help information                      |
+| `kosh init`               | Initialize a new vault with a master password |
+| `kosh add`                | Add or update a credential                    |
+| `kosh get <label> <user>` | Retrieve a stored credential                  |
+
+---
+
+## Roadmap
+
+* Implement credential deletion
+* Implement vault export as JSON
+* Add configuration management and enhanced CLI options

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/gitKashish/kosh/src/internals/logger"
 	"github.com/gitKashish/kosh/src/internals/model"
 )
 
@@ -22,7 +23,7 @@ func IsVaultInitialized() (bool, error) {
 	}
 
 	if err != nil {
-		fmt.Println("[Error] unable to fetch table name from database")
+		logger.Error("unable to fetch table name from database")
 		return false, err
 	}
 
@@ -31,10 +32,10 @@ func IsVaultInitialized() (bool, error) {
 	query = `SELECT COUNT(*) FROM vault`
 	err = db.QueryRow(query).Scan(&count)
 	if err != nil {
-		fmt.Println("[Error] failed to count the number of records in vault table")
+		logger.Error("failed to count the number of records in vault table")
 		return false, err
 	}
-	fmt.Printf("[Debug] found %d vault\n", count)
+	logger.Debug("found %d vault", count)
 	return count > 0, nil
 }
 
@@ -43,7 +44,7 @@ func InitializeVault(vault model.Vault) error {
 	// Start transaction
 	transaction, err := db.Begin()
 	if err != nil {
-		fmt.Println("[Error] failed to start transaction")
+		logger.Error("failed to start transaction")
 		return err
 	}
 	defer transaction.Rollback()
@@ -62,7 +63,7 @@ func InitializeVault(vault model.Vault) error {
 	`)
 
 	if err != nil {
-		fmt.Println("[Error] failed to create vault table")
+		logger.Error("failed to create vault table")
 		return err
 	}
 
@@ -77,7 +78,7 @@ func InitializeVault(vault model.Vault) error {
 	`)
 
 	if err != nil {
-		fmt.Println("[Error] failed to create update trigger on vault")
+		logger.Error("failed to create update trigger on vault")
 		return err
 	}
 
@@ -97,7 +98,7 @@ func InitializeVault(vault model.Vault) error {
 	`)
 
 	if err != nil {
-		fmt.Println("[Error] failed to create credentials table")
+		logger.Error("failed to create credentials table")
 		return err
 	}
 
@@ -112,7 +113,7 @@ func InitializeVault(vault model.Vault) error {
 	`)
 
 	if err != nil {
-		fmt.Println("[Error] failed to create update trigger on credentials")
+		logger.Error("failed to create update trigger on credentials")
 		return err
 	}
 
@@ -122,19 +123,19 @@ func InitializeVault(vault model.Vault) error {
 		VALUES (?, ?, ?, ?)
 	`)
 	if err != nil {
-		fmt.Println("[Error] failed to prepare vault insert statement")
+		logger.Error("failed to prepare vault insert statement")
 		return err
 	}
 
 	_, err = stmt.Exec(vault.PublicKey, vault.Nonce, vault.Secret, vault.Salt)
 	if err != nil {
-		fmt.Println("[Error] failed to insert vault secret")
+		logger.Error("failed to insert vault secret")
 		return err
 	}
 
 	// Commit transaction
 	if err := transaction.Commit(); err != nil {
-		fmt.Println("[Error] failed to commit transaction")
+		logger.Error("failed to commit transaction")
 		return err
 	}
 
@@ -144,12 +145,12 @@ func InitializeVault(vault model.Vault) error {
 func GetVaultInfo() (*model.Vault, error) {
 	initialized, err := IsVaultInitialized()
 	if err != nil {
-		fmt.Println("[Error] error checking vault initialized status")
+		logger.Error("error checking vault initialized status")
 		return nil, err
 	}
 
 	if !initialized {
-		fmt.Println("[Error] vault is not initialized")
+		logger.Error("vault is not initialized")
 		return nil, fmt.Errorf("vault is not initialized")
 	}
 
@@ -161,12 +162,12 @@ func GetVaultInfo() (*model.Vault, error) {
 	`).Scan(&vault.PublicKey, &vault.Secret, &vault.Nonce, &vault.Salt)
 
 	if err == sql.ErrNoRows {
-		fmt.Println("[Error] vault not initialized")
+		logger.Error("vault is not initialized")
 		return nil, err
 	}
 
 	if err != nil {
-		fmt.Println("[Error] failed to get vault info")
+		logger.Error("failed to get vault info")
 		return nil, err
 	}
 

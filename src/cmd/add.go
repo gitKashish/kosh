@@ -2,13 +2,14 @@ package cmd
 
 import (
 	"crypto/sha256"
-	"fmt"
+	"database/sql"
 
 	"golang.org/x/crypto/curve25519"
 
 	"github.com/gitKashish/kosh/src/internals/crypto"
 	"github.com/gitKashish/kosh/src/internals/dao"
 	"github.com/gitKashish/kosh/src/internals/interaction"
+	"github.com/gitKashish/kosh/src/internals/logger"
 	"github.com/gitKashish/kosh/src/internals/model"
 )
 
@@ -24,7 +25,7 @@ func AddCmd(args ...string) error {
 	// load vault info
 	vault, err := dao.GetVaultInfo()
 	if err != nil {
-		fmt.Println("[Error] error fetching vault info")
+		logger.Error("error fetching vault info")
 		return nil
 	}
 	vaultData := vault.GetRawData()
@@ -32,7 +33,7 @@ func AddCmd(args ...string) error {
 	// get master password
 	password, err := interaction.ReadSecretField("master password > ")
 	if err != nil {
-		fmt.Println("[Error] cannot read password")
+		logger.Error("cannot read password")
 		return nil
 	}
 
@@ -40,26 +41,43 @@ func AddCmd(args ...string) error {
 	unlockKey := crypto.GenerateSymmetricKey([]byte(password), vaultData.Salt)
 
 	if _, err := crypto.DecryptPrivateKey(unlockKey, vaultData.Secret, vaultData.Nonce); err != nil {
-		fmt.Println("[Error] master password is incorrect")
+		logger.Error("master password is incorrect")
 		return err
 	}
 
 	// get credential details
 	label := interaction.ReadStringField("enter label > ")
 	username := interaction.ReadStringField("enter username > ")
+
+	// check if a credential already exists for the label and user
+	check, err := dao.GetCredentialByLabelAndUser(label, username)
+	if check != nil {
+		// ask user if they want to override the existing credential
+		options := []string{"yes", "no"}
+		selection := interaction.GetOptionFieldWithRetry(
+			"credential already exists, do you want override it?", options, 1)
+		// return if "no"
+		if selection == 1 {
+			return nil
+		}
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+
 	secret, err := interaction.ReadSecretField("enter secret > ")
 	if err != nil {
-		fmt.Println("[Error] cannot read secret")
+		logger.Error("cannot read secret")
 		return err
 	}
 	confirm, err := interaction.ReadSecretField("confirm secret > ")
 	if err != nil {
-		fmt.Println("[Error] cannot read confirmation")
+		logger.Error("cannot read confirmation")
 		return err
 	}
 
 	if secret != confirm {
-		fmt.Println("[Error] entered secrets do not match")
+		logger.Error("entered secrets do not match")
 		return nil
 	}
 
@@ -84,7 +102,9 @@ func AddCmd(args ...string) error {
 	// save credential
 	err = dao.AddCredential(credential.EncodeToString())
 	if err != nil {
-		fmt.Println("[Error] unable to save credential")
+		logger.Error("unable to save credential")
+	} else {
+		logger.Info("saved credential to vault")
 	}
 	return err
 }

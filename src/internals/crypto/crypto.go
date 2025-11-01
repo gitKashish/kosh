@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 
+	"github.com/gitKashish/kosh/src/internals/logger"
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/curve25519"
@@ -68,7 +69,7 @@ func DecryptSecret(key, cipher, nonce []byte) ([]byte, error) {
 	// decrypt the secret
 	secret, err := aead.Open(nil, nonce, cipher, nil)
 	if err != nil {
-		fmt.Println("[Error] unable to decrypt secret")
+		logger.Error("unable to decrypt secret")
 		return nil, err
 	}
 

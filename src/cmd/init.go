@@ -6,6 +6,7 @@ import (
 	"github.com/gitKashish/kosh/src/internals/crypto"
 	"github.com/gitKashish/kosh/src/internals/dao"
 	"github.com/gitKashish/kosh/src/internals/interaction"
+	"github.com/gitKashish/kosh/src/internals/logger"
 	"github.com/gitKashish/kosh/src/internals/model"
 )
 
@@ -23,11 +24,11 @@ func InitCmd(args ...string) error {
 	// Check if vault is already initialized
 	initialized, err := dao.IsVaultInitialized()
 	if err != nil {
-		fmt.Println("[Error] failed to check vault initialization")
+		logger.Error("failed to check vault initialization")
 		return err
 	}
 	if initialized {
-		fmt.Println("[Info] vault already initialized")
+		logger.Info("vault already initialized")
 		return nil
 	}
 
@@ -58,7 +59,7 @@ func InitCmd(args ...string) error {
 	// save info to the vault
 	err = dao.InitializeVault(*vault.EncodeToString())
 	if err != nil {
-		fmt.Println("[Error] error initializing vault")
+		logger.Error("error initializing vault")
 	}
 	return err
 }
@@ -69,14 +70,14 @@ func getPasswordWithConfirmation() (string, error) {
 
 	password, err := interaction.ReadSecretField("enter master password > ")
 	if err != nil {
-		fmt.Println("[Error] unable to read password")
+		logger.Error("unable to read password")
 		return "", err
 	}
 
 	// Confirm entered password
 	confirm, err := interaction.ReadSecretField("confirm master password > ")
 	if err != nil {
-		fmt.Println("[Error] unable to read confirmation")
+		logger.Error("unable to read confirmation")
 		return "", err
 	}
 

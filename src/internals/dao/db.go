@@ -2,10 +2,10 @@ package dao
 
 import (
 	"database/sql"
-	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/gitKashish/kosh/src/internals/logger"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -15,7 +15,7 @@ var db *sql.DB
 func Initialize() error {
 	userDir, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Println("[Error] failed to get user home directory")
+		logger.Error("failed to get user home directory")
 		return err
 	}
 
@@ -23,7 +23,7 @@ func Initialize() error {
 
 	// Create directory if it is not present
 	if err := os.MkdirAll(koshDir, 0700); err != nil {
-		fmt.Println("[Error] failed to create .kosh directry")
+		logger.Error("failed to create .kosh directry")
 		return err
 	}
 
@@ -31,23 +31,16 @@ func Initialize() error {
 
 	db, err = sql.Open("sqlite3", dbFilePath)
 	if err != nil {
-		fmt.Println("[Error] failed to open connection to DB at ", dbFilePath)
+		logger.Error("failed to connect to databse")
 	}
-
-	if err := db.Ping(); err == nil {
-		fmt.Println("[Debug] connection established")
-		return nil
-	} else {
-		fmt.Println("[Debug] failed to establish connection")
-		return err
-	}
+	return err
 }
 
 // Close closes existing connection to the database
 func Close() error {
 	if db != nil {
 		if err := db.Close(); err != nil {
-			fmt.Println("[Error] failed to close DB connection")
+			logger.Error("failed to close database connection")
 		}
 		return nil
 	}

@@ -1,18 +1,18 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/gitKashish/kosh/src/cmd"
 	"github.com/gitKashish/kosh/src/internals/dao"
+	"github.com/gitKashish/kosh/src/internals/logger"
 )
 
 func main() {
 	// initialize connection with the database
 	if err := dao.Initialize(); err != nil {
-		fmt.Println("[Error] error connecting to database")
-		fmt.Printf("[Debug] %s", err.Error())
+		logger.Error("error connecting to database")
+		logger.Debug("%s", err.Error())
 		os.Exit(1)
 	}
 	defer dao.Close()
@@ -27,10 +27,10 @@ func main() {
 
 	if c, ok := cmd.Commands[command]; ok {
 		if err := c.Exec(args...); err != nil {
-			fmt.Printf("[Debug] %s\n", err.Error())
+			logger.Debug("%s", err.Error())
 		}
 	} else {
-		fmt.Printf("[Error] unknown command %s\n", command)
+		logger.Error("unknown command %s\n", command)
 		cmd.HelpCmd()
 	}
 }

@@ -1,15 +1,14 @@
 package interaction
 
 import (
-	"fmt"
-
+	"github.com/gitKashish/kosh/src/internals/logger"
 	"golang.design/x/clipboard"
 )
 
 func CopyToClipboard(content []byte) {
 	err := clipboard.Init()
 	if err != nil {
-		fmt.Println("[Error] unable to initialize the clipboard")
+		logger.Error("unable to initialize the clipboard")
 	}
 	clipboard.Write(clipboard.FmtText, content)
 }

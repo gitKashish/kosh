@@ -21,11 +21,6 @@ func GenerateSymmetricKey(secret, salt []byte) []byte {
 	return argon2.IDKey(secret, salt, keyTime, keyMemory, keyThreads, keyLength)
 }
 
-func DecryptPrivateKey(unlockKey []byte, secret []byte, nonce []byte) ([]byte, error) {
-	aead, _ := chacha20poly1305.NewX(unlockKey)
-	return aead.Open(nil, nonce, secret, nil)
-}
-
 func GenerateSalt() []byte {
 	salt := make([]byte, 16)
 	_, _ = rand.Read(salt)

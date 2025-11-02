@@ -40,7 +40,7 @@ func AddCmd(args ...string) error {
 	// verify master password and get encryption info
 	unlockKey := crypto.GenerateSymmetricKey([]byte(password), vaultData.Salt)
 
-	if _, err := crypto.DecryptPrivateKey(unlockKey, vaultData.Secret, vaultData.Nonce); err != nil {
+	if _, err := crypto.DecryptSecret(unlockKey, vaultData.Secret, vaultData.Nonce); err != nil {
 		logger.Error("master password is incorrect")
 		return err
 	}

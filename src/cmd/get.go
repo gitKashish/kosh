@@ -69,7 +69,7 @@ func GetCmd(args ...string) error {
 func extractSecret(credential *model.CredentialData, vault *model.VaultData, masterPassword []byte) ([]byte, error) {
 	// decrypt private key using master password
 	unlockKey := crypto.GenerateSymmetricKey(masterPassword, vault.Salt)
-	privateKey, err := crypto.DecryptPrivateKey(unlockKey, vault.Secret, vault.Nonce)
+	privateKey, err := crypto.DecryptSecret(unlockKey, vault.Secret, vault.Nonce)
 	if err != nil {
 		logger.Error("master password is incorrect")
 		return nil, err

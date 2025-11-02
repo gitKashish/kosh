@@ -60,6 +60,8 @@ func InitCmd(args ...string) error {
 	err = dao.InitializeVault(*vault.EncodeToString())
 	if err != nil {
 		logger.Error("error initializing vault")
+	} else {
+		logger.Info("vault initialized successfully")
 	}
 	return err
 }

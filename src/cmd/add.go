@@ -25,7 +25,7 @@ func AddCmd(args ...string) error {
 	// load vault info
 	vault, err := dao.GetVaultInfo()
 	if err != nil {
-		logger.Error("error fetching vault info")
+		logger.Debug("error fetching vault info")
 		return nil
 	}
 	vaultData := vault.GetRawData()

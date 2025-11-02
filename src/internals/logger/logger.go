@@ -11,7 +11,7 @@ const (
 	BUILD_MODE_DEBUG      = "debug"
 )
 
-var BuildMode = BUILD_MODE_PRODUCTION
+var BuildMode = BUILD_MODE_DEBUG
 
 const (
 	ColorReset  = "\033[0m"
@@ -70,4 +70,10 @@ func Debug(format string, args ...any) {
 func Prompt(format string, args ...any) {
 	message := fmt.Sprintf(format, args...)
 	fmt.Printf("%s[?]%s %s", ColorCyan, ColorReset, message)
+}
+
+// Muted prints muted text messages
+func Muted(format string, args ...any) {
+	message := fmt.Sprintf(format, args...)
+	fmt.Printf("%s[•] %s%s\n", ColorGray, message, ColorReset)
 }

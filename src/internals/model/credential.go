@@ -1,6 +1,10 @@
 package model
 
-import "github.com/gitKashish/kosh/src/internals/encoding"
+import (
+	"time"
+
+	"github.com/gitKashish/kosh/src/internals/encoding"
+)
 
 type Credential struct {
 	Label     string
@@ -36,4 +40,12 @@ func (c *CredentialData) EncodeToString() *Credential {
 		Ephemeral: encoding.EncodeToBase64String(c.Ephemeral),
 		Nonce:     encoding.EncodeToBase64String(c.Nonce),
 	}
+}
+
+type CredentialSummary struct {
+	Id        int
+	Label     string
+	User      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }

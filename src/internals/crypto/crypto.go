@@ -64,7 +64,7 @@ func DecryptSecret(key, cipher, nonce []byte) ([]byte, error) {
 	// decrypt the secret
 	secret, err := aead.Open(nil, nonce, cipher, nil)
 	if err != nil {
-		logger.Error("unable to decrypt secret")
+		logger.Debug("unable to decrypt secret")
 		return nil, err
 	}
 

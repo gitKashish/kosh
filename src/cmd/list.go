@@ -44,7 +44,7 @@ func ListCmd(args ...string) error {
 		*userFlag = flagSet.Arg(0)
 	}
 
-	credentials, err := dao.GetCredentialsByUserOrLabel(*labelFlag, *userFlag)
+	credentials, err := dao.SearchCredentialByLabelOrUser(*labelFlag, *userFlag)
 	if err != nil {
 		logger.Error("unable to get matching credential")
 		return err

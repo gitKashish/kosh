@@ -2,26 +2,46 @@ package dao
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/gitKashish/kosh/src/internals/logger"
 	"github.com/gitKashish/kosh/src/internals/model"
 )
 
-func GetCredentialByLabelAndUser(label, user string) (*model.Credential, error) {
+func GetCredentialById(id int) (*model.Credential, error) {
 	var credential model.Credential
-	stmt, err := db.Prepare(`
-		SELECT label, user, secret, ephemeral, nonce FROM credentials
-		WHERE label = ? AND user = ?
-	`)
-	if err != nil {
-		logger.Error("failed to prepare statement to fetch credential info")
+	query := `
+		SELECT id, label, user, secret, ephemeral, nonce FROM credentials
+		WHERE id = ?
+	`
+
+	err := db.QueryRow(query, id).Scan(&credential.Id, &credential.Label, &credential.User, &credential.Secret, &credential.Ephemeral, &credential.Nonce)
+
+	if err == sql.ErrNoRows {
+		logger.Debug("no matching credential found")
 		return nil, err
 	}
 
-	err = stmt.QueryRow(label, user).Scan(&credential.Label, &credential.User, &credential.Secret, &credential.Ephemeral, &credential.Nonce)
+	if err != nil {
+		logger.Error("unable to fetch credential")
+		return nil, err
+	}
+
+	return &credential, nil
+}
+
+func GetCredentialByLabelAndUser(label, user string) (*model.Credential, error) {
+	var credential model.Credential
+	query := `
+		SELECT id, label, user, secret, ephemeral, nonce FROM credentials
+		WHERE label = ? AND user = ?
+	`
+
+	err := db.QueryRow(query, label, user).Scan(&credential.Id, &credential.Label, &credential.User, &credential.Secret, &credential.Ephemeral, &credential.Nonce)
 
 	if err == sql.ErrNoRows {
+		logger.Debug("no matching credential found")
 		return nil, err
 	}
 
@@ -58,7 +78,7 @@ func AddCredential(credential *model.Credential) error {
 	return nil
 }
 
-func GetCredentialsByUserOrLabel(label, user string) ([]model.CredentialSummary, error) {
+func SearchCredentialByLabelOrUser(label, user string) ([]model.CredentialSummary, error) {
 	query := `
 		SELECT id, label, user, created_at, updated_at FROM credentials
 		WHERE TRUE 
@@ -120,4 +140,19 @@ func GetCredentialsByUserOrLabel(label, user string) ([]model.CredentialSummary,
 	}
 
 	return credentials, nil
+}
+
+// DeleteCredentialById deletes a stored credential by its ID, returns error ID is invalid
+func DeleteCredentialById(id int) error {
+	query := `DELETE FROM credentials WHERE id = ?`
+	result, err := db.Exec(query, id)
+	if affectedRows, _ := result.RowsAffected(); affectedRows != 1 {
+		logger.Error("invalid credential id %d", id)
+		return fmt.Errorf("no rows affected")
+	}
+	if err != nil {
+		logger.Debug("unable to delete credential")
+		return err
+	}
+	return nil
 }

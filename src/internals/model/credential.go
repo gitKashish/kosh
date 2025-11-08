@@ -7,19 +7,12 @@ import (
 )
 
 type Credential struct {
+	Id        int
 	Label     string
 	User      string
 	Secret    string
 	Ephemeral string
 	Nonce     string
-}
-
-type CredentialData struct {
-	Label     string
-	User      string
-	Secret    []byte
-	Ephemeral []byte
-	Nonce     []byte
 }
 
 func (c *Credential) GetRawData() *CredentialData {
@@ -30,6 +23,14 @@ func (c *Credential) GetRawData() *CredentialData {
 		Ephemeral: encoding.DecodeBase64String(c.Ephemeral),
 		Nonce:     encoding.DecodeBase64String(c.Nonce),
 	}
+}
+
+type CredentialData struct {
+	Label     string
+	User      string
+	Secret    []byte
+	Ephemeral []byte
+	Nonce     []byte
 }
 
 func (c *CredentialData) EncodeToString() *Credential {

@@ -14,8 +14,8 @@ import (
 func init() {
 	Commands["delete"] = CommandInfo{
 		Exec:        DeleteCmd,
-		Usage:       "kosh delete <credential_id>",
-		Description: "Delete a stored credential.",
+		Usage:       "kosh delete <id>",
+		Description: "Delete a stored credential by ID.",
 	}
 }
 

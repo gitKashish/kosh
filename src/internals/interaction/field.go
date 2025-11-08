@@ -15,7 +15,10 @@ import (
 func ReadStringField(prompt string) string {
 	var data string
 	logger.Prompt("%s", prompt)
-	fmt.Scanln(&data)
+	scanner := bufio.NewScanner(os.Stdin)
+	if scanner.Scan() {
+		data = scanner.Text()
+	}
 	return data
 }
 

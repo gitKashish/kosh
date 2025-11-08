@@ -109,8 +109,9 @@ func printListHelp() {
 	fmt.Println("  -h, --help        Show this help")
 	fmt.Println()
 	fmt.Println("Examples:")
-	fmt.Println("  kosh list                   # List all credentials")
-	fmt.Println("  kosh list pluto             # Search users containing 'pluto'")
-	fmt.Println("  kosh list --user pluto      # Same as above")
-	fmt.Println("  kosh list --label github    # Search labels containing 'github'")
+	fmt.Println("  kosh list                   				# List all credentials")
+	fmt.Println("  kosh list pluto             				# Search users containing 'pluto'")
+	fmt.Println("  kosh list --user pluto      				# Same as above")
+	fmt.Println("  kosh list --label github    				# Search labels containing 'github'")
+	fmt.Println("  kosh list --user pluto --label github    # Search users contating 'pluto' and labels containing 'github'")
 }

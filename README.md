@@ -83,10 +83,11 @@ kosh get github pluto   # Copy credential with label=github & user=pluto
 Get a list of stored credentials filter by `label` and/or `user`:
 
 ```bash
-kosh list                   # List all credentials
-kosh list pluto             # Search users containing 'pluto'
-kosh list --user pluto      # Same as above
-kosh list --label github    # Search labels containing 'github'
+kosh list                               # List all credentials
+kosh list pluto                         # Search users containing 'pluto'
+kosh list --user pluto                  # Same as above
+kosh list --label github                # Search labels containing 'github'
+kosh list --user pluto --label github   # Search users contating 'pluto' and labels containing 'github'
 ```
 
 ### Delte Credential

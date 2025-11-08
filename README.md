@@ -33,6 +33,17 @@ go install github.com/gitKashish/kosh@latest
 
 ---
 
+## Command Reference
+
+| Command                   | Description                                   |
+| ------------------------- | --------------------------------------------- |
+| `kosh help`               | Display help information                      |
+| `kosh init`               | Initialize a new vault with a master password |
+| `kosh add`                | Add or update a credential                    |
+| `kosh get <label> <user>` | Retrieve a stored credential                  |
+| `kosh delete <id>`        | Delete a stored credential                    |
+---
+
 ## Usage
 
 ### Get Help
@@ -64,9 +75,27 @@ kosh add
 Fetch a credential by label (group) and username:
 
 ```bash
-kosh get <label> <user>
+kosh get github pluto   # Copy credential with label=github & user=pluto
 ```
 
+### List Credential
+
+Get a list of stored credentials filter by `label` and/or `user`:
+
+```bash
+kosh list                   # List all credentials
+kosh list pluto             # Search users containing 'pluto'
+kosh list --user pluto      # Same as above
+kosh list --label github    # Search labels containing 'github'
+```
+
+### Delte Credential
+
+Delete a stored credential by its ID:
+
+```bash
+kosh delete 101   # Delete credential with id=101
+```
 ---
 
 ## How It Works
@@ -88,17 +117,6 @@ kosh get <label> <user>
 2. Derive the symmetric key using the vault’s private key and the stored ephemeral public key.
 3. Hash the symmetric key with SHA-256 to recreate the ChaCha key.
 4. Decrypt the cipher text using the AEAD and nonce.
-
----
-
-## Command Reference
-
-| Command                   | Description                                   |
-| ------------------------- | --------------------------------------------- |
-| `kosh help`               | Display help information                      |
-| `kosh init`               | Initialize a new vault with a master password |
-| `kosh add`                | Add or update a credential                    |
-| `kosh get <label> <user>` | Retrieve a stored credential                  |
 
 ---
 

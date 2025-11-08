@@ -16,6 +16,7 @@ func init() {
 	Commands["list"] = CommandInfo{
 		Exec:        ListCmd,
 		Description: "List all credentials associated to a lable or user",
+		Usage:       "kosh list",
 	}
 }
 

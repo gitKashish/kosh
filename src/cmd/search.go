@@ -38,6 +38,11 @@ func SearchCmd(args ...string) error {
 	}
 
 	result := search.BestMatch(queryLabel, queryUser, credentials, time.Now())
+	if result == nil {
+		logger.Warn("suitable match not found")
+		logger.Info("view existing credentials using 'list' command")
+		return nil
+	}
 	logger.Debug("result score %f", result.Score)
 
 	// get password from user
@@ -58,12 +63,9 @@ func SearchCmd(args ...string) error {
 	if err != nil {
 		return err
 	}
-	// TODO: add minimum threshold to qualify for successful search
-	// to minimize marginally better search to keep adding up
-	// unfairly and degrade search quality.
 
 	// increment access count by 1 on successful search
-	dao.UpdateCredentialAccessInfo(result.Credential.Id, 1, time.Now())
+	dao.UpdateCredentialAccessCount(result.Credential.Id, 1, time.Now())
 	interaction.CopyToClipboard(secret)
 	logger.Info("copied secret to clipboard")
 	return nil

@@ -209,10 +209,9 @@ func GetAllCredentials() ([]model.Credential, error) {
 	return credentials, nil
 }
 
-func UpdateCredentialAccessInfo(id, increment int, accessTime time.Time) {
-	// TODO: add a max threshold to trigger access count reset event to prevent overflow
-	query := `UPDATE credentials SET access_count = access_count + 1, accessed_at = ? WHERE id = ?`
-	_, err := db.Exec(query, accessTime, id)
+func UpdateCredentialAccessCount(id, delta int, accessTime time.Time) error {
+	query := `UPDATE credentials SET access_count = access_count + ?, accessed_at = ? WHERE id = ?`
+	_, err := db.Exec(query, delta, accessTime, id)
 	if err != nil {
 		logger.Debug("unable to update credential access info : %d at %s", id, accessTime)
 	}

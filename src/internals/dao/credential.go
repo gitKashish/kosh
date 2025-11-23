@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gitKashish/kosh/src/internals/constants"
 	"github.com/gitKashish/kosh/src/internals/logger"
 	"github.com/gitKashish/kosh/src/internals/model"
 )
@@ -215,4 +216,39 @@ func UpdateCredentialAccessCount(id, delta int, accessTime time.Time) error {
 	if err != nil {
 		logger.Debug("unable to update credential access info : %d at %s", id, accessTime)
 	}
+
+	if constants.ACCESS_COUNT_RESET_THRESHOLD > 0 {
+		accessCount := 0
+		query := `SELECT access_count FROM credentials WHERE id = ?`
+		result := db.QueryRow(query, id)
+		result.Scan(&accessCount)
+		if err := result.Err(); err != nil {
+			logger.Debug("unable to get existing access count for id %d", id)
+			return err
+		}
+
+		if accessCount > constants.ACCESS_COUNT_RESET_THRESHOLD {
+			logger.Debug("access count baseline reset triggered")
+			// reset access count base-line to prevent a single credentials from dominating
+			// the search un-fairly.
+			err := ResetAccessCountBaseline()
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// ResetAccessCountBaseline resets the access count for all credentials by ACCESS_COUNT_RESET_THRESHOLD
+// clamping values between [0, ACCESS_COUNT_RESET_THRESHOLD]. Access count less than ACCESS_COUNT_RESET_THRESHOLD is
+// set to 0.
+func ResetAccessCountBaseline() error {
+	query := `UPDATE credentials SET access_count = MAX(access_count - ?, 0)`
+	_, err := db.Exec(query, constants.ACCESS_COUNT_RESET_THRESHOLD)
+	if err != nil {
+		logger.Debug("failed to update access count baseline")
+		return err
+	}
+	return nil
 }

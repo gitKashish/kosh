@@ -30,9 +30,16 @@ func Initialize() error {
 	dbFilePath := filepath.Join(koshDir, "kosh.db")
 
 	db, err = sql.Open("sqlite3", dbFilePath)
+
 	if err != nil {
 		logger.Error("failed to connect to databse")
 	}
+
+	// Set pragmas for this connection
+	if err := initDatabase(db); err != nil {
+		return err
+	}
+
 	return err
 }
 
@@ -43,6 +50,21 @@ func Close() error {
 			logger.Error("failed to close database connection")
 		}
 		return nil
+	}
+	return nil
+}
+
+func initDatabase(db *sql.DB) error {
+	pragma := `PRAGMA journal_mode=WAL;  
+				PRAGMA synchronous=NORMAL; 
+				PRAGMA foreign_keys=ON;    
+				PRAGMA temp_store=MEMORY;  
+				PRAGMA secure_delete=ON;   
+				PRAGMA trusted_schema=OFF;`
+
+	if _, err := db.Exec(pragma); err != nil {
+		logger.Debug("failed to run pragmas")
+		return err
 	}
 	return nil
 }

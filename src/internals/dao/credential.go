@@ -80,7 +80,7 @@ func AddCredential(credential *model.Credential) error {
 
 func SearchCredentialByLabelOrUser(label, user string) ([]model.CredentialSummary, error) {
 	query := `
-		SELECT id, label, user, created_at, updated_at FROM credentials
+		SELECT id, label, user, access_count, created_at, updated_at, accessed_at FROM credentials
 		WHERE TRUE 
 	`
 
@@ -106,14 +106,16 @@ func SearchCredentialByLabelOrUser(label, user string) ([]model.CredentialSummar
 	credentials := []model.CredentialSummary{}
 	for rows.Next() {
 		var credential model.CredentialSummary
-		var createdAtStr, updatedAtStr string
+		var createdAtStr, updatedAtStr, accessedAtStr string
 
 		if err := rows.Scan(
 			&credential.Id,
 			&credential.Label,
 			&credential.User,
+			&credential.AccessCount,
 			&createdAtStr,
 			&updatedAtStr,
+			&accessedAtStr,
 		); err != nil {
 			logger.Debug("unable to scan row")
 			return nil, err
@@ -131,12 +133,18 @@ func SearchCredentialByLabelOrUser(label, user string) ([]model.CredentialSummar
 			return nil, err
 		}
 
+		credential.AccessedAt, err = time.Parse(time.RFC3339, accessedAtStr)
+		if err != nil {
+			logger.Debug("unable to parse updated at time: %s", accessedAtStr)
+			return nil, err
+		}
+
 		credentials = append(credentials, credential)
 	}
 
 	if rows.Err() != nil {
 		logger.Debug("error iterating over rows")
-		return nil, err
+		return nil, rows.Err()
 	}
 
 	return credentials, nil
@@ -155,4 +163,57 @@ func DeleteCredentialById(id int) error {
 		return err
 	}
 	return nil
+}
+
+func GetAllCredentials() ([]model.Credential, error) {
+	query := `SELECT id, label, user, access_count, secret, ephemeral, nonce, accessed_at FROM credentials`
+	rows, err := db.Query(query)
+	if err != nil {
+		logger.Debug("error fetching all credentials from database")
+		return nil, err
+	}
+	defer rows.Close()
+
+	var credentials []model.Credential
+	for rows.Next() {
+		var credential model.Credential
+		var accessedAtStr string
+		if err := rows.Scan(
+			&credential.Id,
+			&credential.Label,
+			&credential.User,
+			&credential.AccessCount,
+			&credential.Secret,
+			&credential.Ephemeral,
+			&credential.Nonce,
+			&accessedAtStr,
+		); err != nil {
+			logger.Debug("unable to scan credential")
+			return nil, err
+		}
+
+		credential.AccessedAt, err = time.Parse(time.RFC3339, accessedAtStr)
+		if err != nil {
+			logger.Debug("unable to parse time string %s", accessedAtStr)
+			return nil, err
+		}
+
+		credentials = append(credentials, credential)
+	}
+
+	if rows.Err() != nil {
+		logger.Debug("error iterating over rows")
+		return nil, rows.Err()
+	}
+
+	return credentials, nil
+}
+
+func UpdateCredentialAccessInfo(id, increment int, accessTime time.Time) {
+	// TODO: add a max threshold to trigger access count reset event to prevent overflow
+	query := `UPDATE credentials SET access_count = access_count + 1, accessed_at = ? WHERE id = ?`
+	_, err := db.Exec(query, accessTime, id)
+	if err != nil {
+		logger.Debug("unable to update credential access info : %d at %s", id, accessTime)
+	}
 }

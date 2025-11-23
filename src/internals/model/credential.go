@@ -7,12 +7,20 @@ import (
 )
 
 type Credential struct {
-	Id        int
-	Label     string
-	User      string
+	Id          int
+	Label       string
+	User        string
+	AccessCount int
+
+	// crypto data
 	Secret    string
 	Ephemeral string
 	Nonce     string
+
+	// timestamps
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	AccessedAt time.Time
 }
 
 func (c *Credential) GetRawData() *CredentialData {
@@ -44,9 +52,11 @@ func (c *CredentialData) EncodeToString() *Credential {
 }
 
 type CredentialSummary struct {
-	Id        int
-	Label     string
-	User      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Id          int
+	Label       string
+	User        string
+	AccessCount int
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	AccessedAt  time.Time
 }

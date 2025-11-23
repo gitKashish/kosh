@@ -8,6 +8,10 @@ import (
 	"github.com/gitKashish/kosh/src/internals/logger"
 )
 
+const (
+	DEFAULT_COMMAND = "search"
+)
+
 func main() {
 	// initialize connection with the database
 	if err := dao.Initialize(); err != nil {
@@ -26,11 +30,20 @@ func main() {
 	args := os.Args[2:]
 
 	if c, ok := cmd.Commands[command]; ok {
+		// execute registered command
 		if err := c.Exec(args...); err != nil {
 			logger.Debug("%s", err.Error())
 		}
 	} else {
-		logger.Error("unknown command %s\n", command)
-		cmd.HelpCmd()
+		// execute default command with provided args, if no registered command is found
+		if c, ok := cmd.Commands[DEFAULT_COMMAND]; ok {
+			if err := c.Exec(os.Args[1:]...); err != nil {
+				logger.Debug("%s", err.Error())
+			}
+		} else {
+			logger.Error("unknown command %s\n", command)
+			cmd.HelpCmd()
+			os.Exit(1)
+		}
 	}
 }

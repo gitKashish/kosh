@@ -47,6 +47,13 @@ func AddCmd(args ...string) error {
 
 	// get credential details
 	label := interaction.ReadStringField("enter label > ")
+	// check if provided label is same as a registered command
+	if _, found := Commands[label]; found {
+		logger.Error("label cannot be same as an existing command")
+		logger.Info("list existing commands with 'help' command")
+		return nil
+	}
+
 	username := interaction.ReadStringField("enter username > ")
 
 	// check if a credential already exists for the label and user

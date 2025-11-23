@@ -88,11 +88,13 @@ func InitializeVault(vault model.Vault) error {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			label TEXT NOT NULL,
 			user TEXT NOT NULL,
+			access_count NUMBER NOT NULL DEFAULT 0,
 			secret TEXT NOT NULL,
 			ephemeral TEXT NOT NULL,
 			nonce TEXT NOT NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			accessed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			UNIQUE(label, user)
 		)
 	`)

@@ -76,7 +76,7 @@ func displayCredentials(credentials []model.CredentialSummary, filterLabel, filt
 	}
 
 	// Table header with separator
-	fmt.Printf("%-4s %-18s %-18s %-20s %-20s\n", "ID", "LABEL", "USER", "CREATED AT", "UPDATED AT")
+	fmt.Printf("%-4s %-18s %-18s %-20s %-20s %-20s %-6s\n", "ID", "LABEL", "USER", "CREATED AT", "UPDATED AT", "ACCESSED AT", "ACCESS COUNT")
 	fmt.Printf("%s\n", strings.Repeat("─", 84))
 
 	// Table rows
@@ -85,7 +85,8 @@ func displayCredentials(credentials []model.CredentialSummary, filterLabel, filt
 		user := truncate(cred.User, 18)
 		createdAt := truncate(cred.CreatedAt.Local().Format(time.DateTime), 20)
 		updatedAt := truncate(cred.UpdatedAt.Local().Format(time.DateTime), 20)
-		fmt.Printf("%-4d %-18s %-18s %-20s %-20s\n", cred.Id, label, user, createdAt, updatedAt)
+		accessedAt := truncate(cred.AccessedAt.Local().Format(time.DateTime), 20)
+		fmt.Printf("%-4d %-18s %-18s %-20s %-20s %-20s %-6d\n", cred.Id, label, user, createdAt, updatedAt, accessedAt, cred.AccessCount)
 	}
 
 	fmt.Println()

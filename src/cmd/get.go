@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/gitKashish/kosh/src/internals/crypto"
 	"github.com/gitKashish/kosh/src/internals/dao"
@@ -61,6 +62,11 @@ func GetCmd(args ...string) error {
 	if err != nil {
 		return err
 	}
+	// on successful access update the access info for the credential,
+	// increment access count by 2 on get because it has been fetched
+	// with intention meaning that user might be wanting this more
+	dao.UpdateCredentialAccessCount(credential.Id, 2, time.Now())
+
 	interaction.CopyToClipboard(secret)
 	logger.Info("copied secret to clipboard")
 	return nil

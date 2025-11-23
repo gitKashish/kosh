@@ -1,17 +1,47 @@
 # Kosh — Secure Password Manager
 
-**Kosh** is a command-line password manager that securely stores credentials in an encrypted local vault using **SQLite**.
-It employs modern cryptographic standards such as **Curve25519**, **ChaCha20-Poly1305**, and **Argon2** to ensure your data remains private and protected.
+**Kosh** is a fast, secure, local-first command-line password manager.
+It stores credentials in an encrypted SQLite vault using modern cryptographic
+primitives such as **Curve25519**, **ChaCha20-Poly1305**, and **Argon2id**.
+
+Kosh is lightweight, dependency-free, cross-platform, and fully offline.
+
+---
+
+# 📑 Index
+
+1. [Features](#features)
+2. [Installation](#installation)
+
+   * [From Source](#from-source)
+   * [Using Go Install](#using-go-install-recommended)
+3. [Command Reference](#command-reference)
+4. [Usage](#usage)
+
+   * [Show Help](#show-help)
+   * [Initialize the Vault](#initialize-the-vault)
+   * [Add Credential](#add-credential)
+   * [Retrieve Credential](#retrieve-credential)
+   * [List Credentials](#list-credentials)
+   * [Delete Credential](#delete-credential)
+   * [Adaptive Search](#adaptive-search)
+
+     * [Single-Argument Search](#single-argument-search)
+     * [Two-Argument Search](#two-argument-search)
+     * [Scoring Algorithm](#adaptive-search-scoring-algorithm)
+5. [SQLite Storage](#sqlite-storage)
 
 ---
 
 ## Features
 
-* Secure end-to-end encryption for all credentials
-* Local, lightweight SQLite-based storage
-* Master password protection for the vault
-* Simple, cross-platform CLI interface
-* Fast and dependency-free operation
+* 🔐 End-to-end encryption for all credentials
+* 🗄️ Local, portable SQLite vault
+* 🔑 Master-password–derived encryption key (Argon2id)
+* ⚡ **Adaptive fuzzy search** with scoring, recency, and frequency weighting
+* 🧩 Minimum external dependencies
+* 🎯 Simple, fast CLI interface
+* 📦 Cross-platform (Linux, macOS, Windows)
 
 ---
 
@@ -35,94 +65,123 @@ go install github.com/gitKashish/kosh@latest
 
 ## Command Reference
 
-| Command                   | Description                                   |
-| ------------------------- | --------------------------------------------- |
-| `kosh help`               | Display help information                      |
-| `kosh init`               | Initialize a new vault with a master password |
-| `kosh add`                | Add or update a credential                    |
-| `kosh get <label> <user>` | Retrieve a stored credential                  |
-| `kosh delete <id>`        | Delete a stored credential                    |
+| Command                   | Description                                         |
+| ------------------------- | --------------------------------------------------- |
+| `kosh help`               | Show help and usage                                 |
+| `kosh init`               | Initialize a new encrypted vault                    |
+| `kosh add`                | Add or update a credential                          |
+| `kosh list`               | List credentials (with optional filters)            |
+| `kosh get <label> <user>` | Retrieve and decrypt a credential                   |
+| `kosh search <query>`     | Adaptive search for the closest matching credential |
+| `kosh <query>`            | Shorthand for `kosh search <query>`                 |
+| `kosh delete <id>`        | Delete a credential from the vault                  |
+
 ---
 
 ## Usage
 
-### Get Help
-
-Get command reference and usage details:
+### Show Help
 
 ```bash
 kosh help
 ```
 
-### Initialize Vault
-
-Set up a new vault and master password:
+### Initialize the Vault
 
 ```bash
 kosh init
 ```
 
-### Add Credential
+Prompts for a master password, derives a secure key, and sets up the vault.
 
-Add or update a stored credential through an interactive prompt:
+### Add Credential
 
 ```bash
 kosh add
 ```
 
+Interactive prompt for label, username, password, and optional notes.
+
 ### Retrieve Credential
 
-Fetch a credential by label (group) and username:
-
 ```bash
-kosh get github pluto   # Copy credential with label=github & user=pluto
+kosh get github pluto
 ```
 
-### List Credential
+Decrypts and prints the stored password securely.
 
-Get a list of stored credentials filter by `label` and/or `user`:
+### List Credentials
 
 ```bash
-kosh list                               # List all credentials
+kosh list                               # List all entries
 kosh list pluto                         # Search users containing 'pluto'
-kosh list --user pluto                  # Same as above
-kosh list --label github                # Search labels containing 'github'
-kosh list --user pluto --label github   # Search users contating 'pluto' and labels containing 'github'
+kosh list --label github                # Match labels containing 'github'
+kosh list --user pluto                  # Match a user
+kosh list --label github --user pluto   # Combine filters
 ```
 
-### Delte Credential
-
-Delete a stored credential by its ID:
+### Delete Credential
 
 ```bash
-kosh delete 101   # Delete credential with id=101
+kosh delete 101
 ```
----
 
-## How It Works
-
-### Credential Encryption
-
-1. Retrieve the vault’s public key.
-2. Generate an ephemeral key pair for session key exchange.
-3. Derive a symmetric key using Curve25519 with the vault’s public key and ephemeral private key.
-4. Hash the symmetric key with SHA-256 to obtain a 32-byte key for ChaCha20.
-5. Create a ChaCha20-Poly1305 AEAD instance.
-6. Generate a random nonce.
-7. Encrypt the plaintext secret using AEAD and the nonce.
-8. Store the nonce, ephemeral public key, and cipher text (all base64-encoded) in the database.
-
-### Credential Decryption
-
-1. Decrypt the vault’s private key using the master password with Argon2.
-2. Derive the symmetric key using the vault’s private key and the stored ephemeral public key.
-3. Hash the symmetric key with SHA-256 to recreate the ChaCha key.
-4. Decrypt the cipher text using the AEAD and nonce.
+Removes an entry safely from the vault.
 
 ---
 
-## Roadmap
+## Adaptive Search
 
-* Implement credential deletion
-* Implement vault export as JSON
-* Add configuration management and enhanced CLI options
+### Single-Argument Search
+
+Searches **across both label and user**:
+
+```bash
+kosh search git
+# or simply
+kosh git
+```
+
+Matches examples like:
+
+* label: `"github"`
+* user: `"gitlab-user"`
+* label: `"work-git"`
+
+### Two-Argument Search
+
+Treats the first argument as **label query** and the second as **user query**:
+
+```bash
+kosh search mail personal
+kosh search github pluto
+```
+
+Equivalent to fuzzy-matching both fields.
+
+### Adaptive Search Scoring Algorithm
+
+Results are ranked by a weighted combination of:
+
+* Levenshtein distance
+* Prefix/substring boosts
+* Recency (recently used entries score higher)
+* Frequency (frequently used entries score higher)
+
+The top-scoring entry is returned first.
+
+---
+
+## SQLite Storage
+
+Kosh uses a compact, optimized SQLite layout:
+
+* **Credentials table** (encrypted payloads + metadata)
+* **Usage metadata** for adaptive search
+
+  * last access time
+  * access count
+* **WAL mode** enabled automatically
+* **Safe delete mode** to avoid accidental cross-page leakage
+
+---

@@ -23,7 +23,7 @@ const (
 
 	// limits
 	MAX_STRING_SCORE    = 5.0
-	MIN_SCORE_THRESHOLD = 0.001
+	MIN_SCORE_THRESHOLD = 0.2
 )
 
 type SearchResult struct {

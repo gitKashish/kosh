@@ -44,6 +44,7 @@ func SearchCmd(args ...string) error {
 		return nil
 	}
 	logger.Debug("result score %f", result.Score)
+	logger.Info("found credential - %s (%s)", result.Credential.Label, result.Credential.User)
 
 	// get password from user
 	password, err := interaction.ReadSecretField("master password > ")

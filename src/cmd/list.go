@@ -77,7 +77,7 @@ func displayCredentials(credentials []model.CredentialSummary, filterLabel, filt
 
 	// Table header with separator
 	fmt.Printf("%-4s %-18s %-18s %-20s %-20s %-20s %-6s\n", "ID", "LABEL", "USER", "CREATED AT", "UPDATED AT", "ACCESSED AT", "ACCESS COUNT")
-	fmt.Printf("%s\n", strings.Repeat("─", 84))
+	fmt.Printf("%s\n", strings.Repeat("─", 120))
 
 	// Table rows
 	for _, cred := range credentials {

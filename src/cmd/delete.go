@@ -66,9 +66,6 @@ func DeleteCmd(args ...string) error {
 
 	// get deletion confirmation
 	logger.Warn("Are you sure you want to delete the following credential? This action is permanent and cannot be reverted.")
-	logger.Info("id: %d", credential.Id)
-	logger.Info("label: %s", credential.Label)
-	logger.Info("user: %s", credential.User)
 
 	confirmation_key := fmt.Sprintf("delete %s %s", credential.Label, credential.User)
 	confirmation_text := interaction.ReadStringField(fmt.Sprintf("enter `%s` to confirm or anything else to cancel > ", confirmation_key))

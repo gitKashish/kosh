@@ -132,5 +132,3 @@ Before submitting a PR:
 For detailed design docs, cryptography explanations, and diagrams:
 
 👉 **[Encryption Architecture](https://kosh.plutolab.org/technical/encryption)**
-
----

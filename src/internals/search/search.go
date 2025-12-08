@@ -22,7 +22,7 @@ const (
 	SUBSTRING_BOOST = 0.5
 
 	// limits
-	MAX_STRING_SCORE    = 5.0
+	MAX_STRING_SCORE    = 1.0
 	MIN_SCORE_THRESHOLD = 0.2
 )
 
@@ -119,11 +119,6 @@ func stringScore(query, target string) float64 {
 		simScore += PREFIX_BOOST
 	} else if strings.Contains(target, query) {
 		simScore += SUBSTRING_BOOST
-	}
-
-	// clamp the final score
-	if simScore > MAX_STRING_SCORE {
-		return MAX_STRING_SCORE
 	}
 
 	return simScore

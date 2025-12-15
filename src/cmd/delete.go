@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/gitKashish/kosh/src/internals/crypto"
-	"github.com/gitKashish/kosh/src/internals/dao"
-	"github.com/gitKashish/kosh/src/internals/interaction"
-	"github.com/gitKashish/kosh/src/internals/logger"
+	"git.plutolab.org/plutolab/kosh-cli/src/internals/crypto"
+	"git.plutolab.org/plutolab/kosh-cli/src/internals/dao"
+	"git.plutolab.org/plutolab/kosh-cli/src/internals/interaction"
+	"git.plutolab.org/plutolab/kosh-cli/src/internals/logger"
 )
 
 func init() {

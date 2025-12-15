@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gitKashish/kosh/src/internals/logger"
-	"github.com/gitKashish/kosh/src/internals/model"
+	"git.plutolab.org/plutolab/kosh-cli/src/internals/logger"
+	"git.plutolab.org/plutolab/kosh-cli/src/internals/model"
 )
 
 const (

@@ -3,7 +3,7 @@ package model
 import (
 	"time"
 
-	"github.com/gitKashish/kosh/src/internals/encoding"
+	"git.plutolab.org/plutolab/kosh-cli/src/internals/encoding"
 )
 
 type Credential struct {

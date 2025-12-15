@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/gitKashish/kosh/src/internals/logger"
-	"github.com/gitKashish/kosh/src/internals/model"
+	"git.plutolab.org/plutolab/kosh-cli/src/internals/logger"
+	"git.plutolab.org/plutolab/kosh-cli/src/internals/model"
 )
 
 // IsVaultInitialized checks if vault exists and has a valid record in it

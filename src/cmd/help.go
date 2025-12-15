@@ -20,7 +20,7 @@ func HelpCmd(args ...string) error {
 		fmt.Printf("  %-25s - %s\n", info.Usage, info.Description)
 	}
 
-	fmt.Println("\nFor more information, visit: https://git.plutolab.org/plutolab/kosh-cli")
+	fmt.Println("\nFor more information, visit: https://git.plutolab.org/plutolab/kosh")
 
 	return nil
 }

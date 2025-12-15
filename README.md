@@ -74,7 +74,7 @@ Kosh is written entirely in **Go**, with a small and clean internal module struc
 ## 1. Clone the project
 
 ```bash
-git clone https://git.plutolab.org/plutolab/kosh-cli.git
+git clone https://git.plutolab.org/plutolab/kosh.git
 cd kosh
 ```
 

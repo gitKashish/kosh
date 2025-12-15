@@ -3,9 +3,9 @@ package main
 import (
 	"os"
 
-	"git.plutolab.org/plutolab/kosh-cli/src/cmd"
-	"git.plutolab.org/plutolab/kosh-cli/src/internals/dao"
-	"git.plutolab.org/plutolab/kosh-cli/src/internals/logger"
+	"git.plutolab.org/plutolab/kosh/src/cmd"
+	"git.plutolab.org/plutolab/kosh/src/internals/dao"
+	"git.plutolab.org/plutolab/kosh/src/internals/logger"
 )
 
 const (

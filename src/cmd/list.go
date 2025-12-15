@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"git.plutolab.org/plutolab/kosh-cli/src/internals/dao"
-	"git.plutolab.org/plutolab/kosh-cli/src/internals/logger"
-	"git.plutolab.org/plutolab/kosh-cli/src/internals/model"
+	"git.plutolab.org/plutolab/kosh/src/internals/dao"
+	"git.plutolab.org/plutolab/kosh/src/internals/logger"
+	"git.plutolab.org/plutolab/kosh/src/internals/model"
 )
 
 func init() {

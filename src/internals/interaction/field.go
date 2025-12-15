@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"git.plutolab.org/plutolab/kosh-cli/src/internals/logger"
+	"git.plutolab.org/plutolab/kosh/src/internals/logger"
 	"golang.org/x/term"
 )
 

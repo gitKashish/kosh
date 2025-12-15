@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"git.plutolab.org/plutolab/kosh-cli/src/internals/logger"
+	"git.plutolab.org/plutolab/kosh/src/internals/logger"
 	_ "github.com/mattn/go-sqlite3"
 )
 

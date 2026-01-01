@@ -328,8 +328,12 @@ func generatePassword(length int, upper, lower, digit, symbol bool, require Requ
 }
 
 func randomInt(max int) (int, error) {
+	if max <= 0 {
+		return 0, fmt.Errorf("max must be greater than 0")
+	}
 	n, err := rand.Int(rand.Reader, big.NewInt(int64(max)))
 	if err != nil {
+		// extremely rare: crypto/rand failure (system entropy issue)
 		return 0, err
 	}
 	return int(n.Int64()), nil

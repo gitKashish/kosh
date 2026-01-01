@@ -46,7 +46,11 @@ func AddCmd(args ...string) error {
 	}
 
 	// get credential details
-	label := interaction.ReadStringField("enter label > ")
+	label, err := interaction.ReadStringField("enter label > ")
+	if err != nil {
+		logger.Error("unable to read input")
+		return err
+	}
 	// check if provided label is same as a registered command
 	if _, found := Commands[label]; found {
 		logger.Error("label cannot be same as an existing command")
@@ -54,7 +58,11 @@ func AddCmd(args ...string) error {
 		return nil
 	}
 
-	username := interaction.ReadStringField("enter username > ")
+	username, err := interaction.ReadStringField("enter username > ")
+	if err != nil {
+		logger.Error("unable to read input")
+		return err
+	}
 
 	// check if a credential already exists for the label and user
 	check, err := dao.GetCredentialByLabelAndUser(label, username)

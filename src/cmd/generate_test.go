@@ -72,73 +72,155 @@ func TestRandomChar(t *testing.T) {
 }
 
 func TestParseRequirement(t *testing.T) {
-	t.Run("all allowed and all required", func(t *testing.T) {
-		got, err := parseRequirement(
-			true,
-			true,
-			true,
-			true,
-			"upper=1,lower=2,symbol=2,digit=3",
-		)
+	tests := []struct {
+		name        string
+		upper       bool
+		lower       bool
+		digit       bool
+		symbol      bool
+		requireStr  string
+		want        RequireConfig
+		expectError bool
+	}{
+		{
+			name:       "empty require string",
+			upper:      true,
+			lower:      true,
+			digit:      true,
+			symbol:     true,
+			requireStr: "",
+			want:       RequireConfig{},
+		},
+		{
+			name:       "single requirement",
+			upper:      true,
+			lower:      true,
+			digit:      true,
+			symbol:     true,
+			requireStr: "upper=2",
+			want: RequireConfig{
+				UpperCharGroup: 2,
+			},
+		},
+		{
+			name:       "multiple requirements",
+			upper:      true,
+			lower:      true,
+			digit:      true,
+			symbol:     true,
+			requireStr: "upper=1,lower=2,symbol=2,digit=3",
+			want: RequireConfig{
+				UpperCharGroup:  1,
+				LowerCharGroup:  2,
+				SymbolCharGroup: 2,
+				DigitCharGroup:  3,
+			},
+		},
+		{
+			name:       "zero values are allowed",
+			upper:      true,
+			lower:      true,
+			digit:      true,
+			symbol:     true,
+			requireStr: "upper=0,lower=0",
+			want: RequireConfig{
+				UpperCharGroup: 0,
+				LowerCharGroup: 0,
+			},
+		},
+		{
+			name:        "invalid format missing equals",
+			upper:       true,
+			lower:       true,
+			digit:       true,
+			symbol:      true,
+			requireStr:  "upper",
+			expectError: true,
+		},
+		{
+			name:        "invalid format empty value",
+			upper:       true,
+			lower:       true,
+			digit:       true,
+			symbol:      true,
+			requireStr:  "upper=",
+			expectError: true,
+		},
+		{
+			name:        "non integer value",
+			upper:       true,
+			lower:       true,
+			digit:       true,
+			symbol:      true,
+			requireStr:  "upper=abc",
+			expectError: true,
+		},
+		{
+			name:        "negative value",
+			upper:       true,
+			lower:       true,
+			digit:       true,
+			symbol:      true,
+			requireStr:  "upper=-1",
+			expectError: true,
+		},
+		{
+			name:        "required but not allowed (upper)",
+			upper:       false,
+			lower:       true,
+			digit:       true,
+			symbol:      true,
+			requireStr:  "upper=1",
+			expectError: true,
+		},
+		{
+			name:       "unknown group is rejected implicitly",
+			upper:      true,
+			lower:      true,
+			digit:      true,
+			symbol:     true,
+			requireStr: "foo=2",
+			want: RequireConfig{
+				CharGroup("foo"): 2,
+			},
+		},
+		{
+			name:       "duplicate keys last wins",
+			upper:      true,
+			lower:      true,
+			digit:      true,
+			symbol:     true,
+			requireStr: "upper=1,upper=3",
+			want: RequireConfig{
+				UpperCharGroup: 3,
+			},
+		},
+	}
 
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseRequirement(
+				tt.upper,
+				tt.lower,
+				tt.digit,
+				tt.symbol,
+				tt.requireStr,
+			)
 
-		want := RequireConfig{
-			UpperCharGroup:  1,
-			LowerCharGroup:  2,
-			SymbolCharGroup: 2,
-			DigitCharGroup:  3,
-		}
+			if tt.expectError {
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+				return
+			}
 
-		requirementEqual(t, got, want)
-	})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 
-	t.Run("all allowed and none required", func(t *testing.T) {
-		got, err := parseRequirement(
-			true,
-			true,
-			true,
-			true,
-			"",
-		)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		want := RequireConfig{}
-		requirementEqual(t, got, want)
-	})
-
-	t.Run("none allowed and none required", func(t *testing.T) {
-		got, err := parseRequirement(
-			false,
-			false,
-			false,
-			false,
-			"",
-		)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		want := RequireConfig{}
-		requirementEqual(t, got, want)
-	})
-
-	t.Run("none allowed but all required", func(t *testing.T) {
-		_, err := parseRequirement(
-			false,
-			false,
-			false,
-			false,
-			"upper=1,lower=2,symbol=2,digit=3",
-		)
-		if err == nil {
-			t.Fatalf("expected error, got nil")
-		}
-	})
+			requirementEqual(t, got, tt.want)
+		})
+	}
 }
 
 // Helpers

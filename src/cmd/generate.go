@@ -50,9 +50,14 @@ func generateCmd(args ...string) error {
 	var buf bytes.Buffer
 	flagSet.SetOutput(&buf)
 	if err := flagSet.Parse(args); err != nil {
-		logger.Error("%s", strings.Split(buf.String(), "\n")[0])
+		if err != flag.ErrHelp {
+			errorMessage := strings.Split(buf.String(), "\n")[0]
+			logger.Error("%s\n", errorMessage)
+		}
+		printGenerateHelp()
 		return err
 	}
+
 	logger.Debug("length %d, upper %t, lower %t, digit %t, symbol %t, require %s", *length, *upper, *lower, *digit, *symbol, *require)
 
 	// positional arguments
@@ -345,4 +350,66 @@ func randomChar(chars string) (byte, error) {
 		return 0, err
 	}
 	return chars[i], nil
+}
+
+func printGenerateHelp() {
+	fmt.Println(`
+Usage:
+  kosh generate <label> <user> [options]
+
+Description:
+  Generate a strong random password and store it securely in the vault.
+  The generated password is encrypted and copied to the clipboard.
+
+Arguments:
+  label        Identifier for the credential (must not match a command name)
+  user         Username or account associated with the credential
+
+Options:
+  -length int
+        Length of the generated password (default: 20)
+
+  -upper
+        Include uppercase letters (A-Z) (default: true)
+
+  -lower
+        Include lowercase letters (a-z) (default: true)
+
+  -digit
+        Include digits (0-9) (default: true)
+
+  -symbol
+        Include special symbols (!@#$%^&*()-_=+[]{}<>?/|) (default: true)
+
+  -require string
+        Enforce minimum character counts per group.
+        Format: group=count[,group=count...]
+
+        Valid groups:
+          lower    lowercase letters
+          upper    uppercase letters
+          digit    digits
+          symbol   special symbols
+
+        Example:
+          -require "upper=2,digit=3,symbol=1"
+
+Behavior:
+  • If required characters exceed the password length, you will be prompted
+    to increase the length automatically.
+  • If a credential with the same label and user exists, overwrite confirmation
+    is required.
+  • Master password verification is required to unlock the vault.
+
+Examples:
+  Generate a default password:
+    kosh generate github alice
+
+  Generate a 32-character password with strict requirements:
+    kosh generate email alice \
+      -length 32 \
+      -require "upper=2,lower=10,digit=5,symbol=3"
+
+  Generate a password without symbols:
+    kosh generate server root -symbol=false`)
 }

@@ -65,13 +65,17 @@ func DeleteCmd(args ...string) error {
 	}
 
 	// get deletion confirmation
-	logger.Warn("Are you sure you want to delete the following credential? This action is permanent and cannot be reverted.")
+	confirm, err := interaction.ConfirmWithText(
+		"delete operation is permanent and cannot be undone. are you sure?",
+		fmt.Sprintf("delete %s %s", credential.Label, credential.User),
+	)
+	if err != nil {
+		logger.Error("error confirming with text prompt")
+		return err
+	}
 
-	confirmation_key := fmt.Sprintf("delete %s %s", credential.Label, credential.User)
-	confirmation_text := interaction.ReadStringField(fmt.Sprintf("enter `%s` to confirm or anything else to cancel > ", confirmation_key))
-	if confirmation_text != confirmation_key {
-		logger.Warn("confirmation key does not match")
-		logger.Info("deletion operation cancelled")
+	if !confirm {
+		logger.Info("operation aborted")
 		return nil
 	}
 

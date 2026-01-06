@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"git.plutolab.org/plutolab/kosh/src/internals/constants"
 	"git.plutolab.org/plutolab/kosh/src/internals/crypto"
 	"git.plutolab.org/plutolab/kosh/src/internals/dao"
 	"git.plutolab.org/plutolab/kosh/src/internals/interaction"
@@ -32,7 +33,7 @@ const (
 func init() {
 	Commands["generate"] = CommandInfo{
 		Exec:        generateCmd,
-		Usage:       "kosh generate <label> <user> [options]",
+		Usage:       "kosh generate [options] <label> <user>",
 		Description: "generate a strong password and store as credential",
 	}
 }
@@ -62,8 +63,8 @@ func generateCmd(args ...string) error {
 
 	// positional arguments
 	if len(flagSet.Args()) < 2 {
-		logger.Error("wrong arguments got %d, want %d", len(flagSet.Args()), 2)
-		return fmt.Errorf("invalid arguments provided")
+		logger.Error(constants.ErrInvalidArguments)
+		return fmt.Errorf("wrong arguments got %d, want %d", len(flagSet.Args()), 2)
 	}
 
 	label := flagSet.Arg(0)
@@ -101,7 +102,7 @@ func generateCmd(args ...string) error {
 		}
 
 		if !confirm {
-			logger.Info("opeartion aborted")
+			logger.Info(constants.MsgOperationAborted)
 			return nil
 		}
 
@@ -117,44 +118,45 @@ func generateCmd(args ...string) error {
 	vaultData := vault.GetRawData()
 
 	// verify master password
-	password, err := interaction.ReadSecretField("master password > ")
+	password, err := interaction.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
-		logger.Error("error reading master password")
+		logger.Error(constants.ErrFailedToReadInput)
 		return err
 	}
 
 	unlockKey := crypto.GenerateSymmetricKey([]byte(password), vaultData.Salt)
 	if _, err := crypto.DecryptSecret(unlockKey, vaultData.Secret, vaultData.Nonce); err != nil {
-		logger.Error("master password is incorrect")
+		logger.Error(constants.ErrIncorrectMasterPassword)
 		return err
 	}
 
 	// ensure that label is not a command
 	if _, found := Commands[label]; found {
-		logger.Error("label cannot be same as an existing command")
-		logger.Info("list existing commands with 'help' command")
+		logger.Error(constants.ErrLabelCannotBeCommand)
+		logger.Info(constants.MsgListCommandsWithHelp)
 		return nil
 	}
 
 	// check if same credential already exists or not
 	if cred, _ := dao.GetCredentialByLabelAndUser(label, user); cred != nil {
 		overwrite, err := interaction.ConfirmYesNo(
-			"credential already exists. do you want to overwrite?",
+			constants.MsgOverwriteCredential,
 			false,
 		)
 
 		if err != nil {
-			logger.Error("failed to read input")
+			logger.Error(constants.ErrFailedToReadInput)
 			return err
 		}
 
 		if !overwrite {
-			logger.Info("operation aborted")
+			logger.Info(constants.MsgOperationAborted)
 			return nil
 		}
 
+		logger.Warn(constants.MsgOperationIsPermanent)
 		confirm, err := interaction.ConfirmWithText(
-			"this operation cannot be undone. are you sure?",
+			fmt.Sprintf("%s %s", constants.MsgOverwriteCredential, constants.MsgAreYouSure),
 			fmt.Sprintf("overwrite %s %s", label, user),
 		)
 		if err != nil {
@@ -163,7 +165,7 @@ func generateCmd(args ...string) error {
 		}
 
 		if !confirm {
-			logger.Info("operation aborted")
+			logger.Info(constants.MsgOperationAborted)
 			return nil
 		}
 	}
@@ -195,10 +197,10 @@ func generateCmd(args ...string) error {
 	// save credential
 	err = dao.AddCredential(credential.EncodeToString())
 	if err != nil {
-		logger.Error("unable to save credential")
+		logger.Error(constants.ErrFailedToSaveCredential)
 	} else {
 		interaction.CopyToClipboard(generatedSecret)
-		logger.Info("saved credential to vault")
+		logger.Info(constants.MsgSavedCredential)
 	}
 	return nil
 }
@@ -355,7 +357,7 @@ func randomChar(chars string) (byte, error) {
 func printGenerateHelp() {
 	fmt.Println(`
 Usage:
-  kosh generate <label> <user> [options]
+  kosh generate [options] <label> <user>
 
 Description:
   Generate a strong random password and store it securely in the vault.
@@ -406,10 +408,11 @@ Examples:
     kosh generate github alice
 
   Generate a 32-character password with strict requirements:
-    kosh generate email alice \
+    kosh generate \
       -length 32 \
-      -require "upper=2,lower=10,digit=5,symbol=3"
+      -require "upper=2,lower=10,digit=5,symbol=3" \
+      email alice 
 
   Generate a password without symbols:
-    kosh generate server root -symbol=false`)
+    kosh generate -symbol=false server root`)
 }

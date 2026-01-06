@@ -5,7 +5,7 @@ import "fmt"
 func init() {
 	Commands["help"] = CommandInfo{
 		Exec:        HelpCmd,
-		Description: "Show help information",
+		Description: "show help information",
 		Usage:       "kosh help",
 	}
 }
@@ -17,7 +17,7 @@ func HelpCmd(args ...string) error {
 
 	// generate help from registered commands
 	for _, info := range Commands {
-		fmt.Printf("  %-25s - %s\n", info.Usage, info.Description)
+		fmt.Printf("%s - %s\n", info.Usage, info.Description)
 	}
 
 	fmt.Println("\nFor more information, visit: https://git.plutolab.org/plutolab/kosh")

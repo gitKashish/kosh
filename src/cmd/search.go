@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"git.plutolab.org/plutolab/kosh/src/internals/constants"
 	"git.plutolab.org/plutolab/kosh/src/internals/dao"
 	"git.plutolab.org/plutolab/kosh/src/internals/interaction"
 	"git.plutolab.org/plutolab/kosh/src/internals/logger"
@@ -20,7 +21,7 @@ func init() {
 
 func SearchCmd(args ...string) error {
 	if len(args) < 1 {
-		logger.Error("missing arguments")
+		logger.Error(constants.ErrInvalidArguments)
 		HelpCmd()
 		return fmt.Errorf("missing arguments, got %d, want %d", len(args), 2)
 	}
@@ -33,29 +34,29 @@ func SearchCmd(args ...string) error {
 
 	credentials, err := dao.GetAllCredentials()
 	if err != nil {
-		logger.Error("unable to fetch credentials to search")
+		logger.Error(constants.ErrFailedToFetchCredential)
 		return err
 	}
 
 	result := search.BestMatch(queryLabel, queryUser, credentials, time.Now())
 	if result == nil {
-		logger.Warn("suitable match not found")
-		logger.Info("view existing credentials using 'list' command")
+		logger.Warn(constants.ErrCredentialMatchNotFound)
+		logger.Info(constants.MsgListCredentialWithList)
 		return nil
 	}
 	logger.Debug("result score %f", result.Score)
 	logger.Info("found credential - %s (%s)", result.Credential.Label, result.Credential.User)
 
 	// get password from user
-	password, err := interaction.ReadSecretField("master password > ")
+	password, err := interaction.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
-		logger.Error("unable to read password")
+		logger.Error(constants.ErrFailedToReadInput)
 		return err
 	}
 
 	vault, err := dao.GetVaultInfo()
 	if err != nil {
-		logger.Error("error getting vault info")
+		logger.Error(constants.ErrFailedToFetchVaultInfo)
 		return err
 	}
 	vaultData := vault.GetRawData()
@@ -68,6 +69,6 @@ func SearchCmd(args ...string) error {
 	// increment access count by 1 on successful search
 	dao.UpdateCredentialAccessCount(result.Credential.Id, 1, time.Now())
 	interaction.CopyToClipboard(secret)
-	logger.Info("copied secret to clipboard")
+	logger.Info(constants.MsgCopiedCredential)
 	return nil
 }

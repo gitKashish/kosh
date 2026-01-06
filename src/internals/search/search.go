@@ -198,17 +198,3 @@ func Levenshtein(a, b string) int {
 
 	return prev[la]
 }
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}

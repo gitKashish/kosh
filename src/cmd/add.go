@@ -3,9 +3,11 @@ package cmd
 import (
 	"crypto/sha256"
 	"database/sql"
+	"fmt"
 
 	"golang.org/x/crypto/curve25519"
 
+	"git.plutolab.org/plutolab/kosh/src/internals/constants"
 	"git.plutolab.org/plutolab/kosh/src/internals/crypto"
 	"git.plutolab.org/plutolab/kosh/src/internals/dao"
 	"git.plutolab.org/plutolab/kosh/src/internals/interaction"
@@ -16,7 +18,7 @@ import (
 func init() {
 	Commands["add"] = CommandInfo{
 		Exec:        AddCmd,
-		Description: "Add a new credential",
+		Description: "add a new credential to vault",
 		Usage:       "kosh add",
 	}
 }
@@ -25,15 +27,15 @@ func AddCmd(args ...string) error {
 	// load vault info
 	vault, err := dao.GetVaultInfo()
 	if err != nil {
-		logger.Debug("error fetching vault info")
+		logger.Error(constants.ErrFailedToFetchVaultInfo)
 		return nil
 	}
 	vaultData := vault.GetRawData()
 
 	// get master password
-	password, err := interaction.ReadSecretField("master password > ")
+	password, err := interaction.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
-		logger.Error("cannot read password")
+		logger.Error(constants.ErrFailedToReadInput)
 		return nil
 	}
 
@@ -41,38 +43,43 @@ func AddCmd(args ...string) error {
 	unlockKey := crypto.GenerateSymmetricKey([]byte(password), vaultData.Salt)
 
 	if _, err := crypto.DecryptSecret(unlockKey, vaultData.Secret, vaultData.Nonce); err != nil {
-		logger.Error("master password is incorrect")
+		logger.Error(constants.ErrIncorrectMasterPassword)
 		return err
 	}
 
 	// get credential details
-	label, err := interaction.ReadStringField("enter label > ")
+	label, err := interaction.ReadStringField(constants.MsgEnterCredentialLabel)
 	if err != nil {
-		logger.Error("unable to read input")
+		logger.Error(constants.ErrFailedToReadInput)
 		return err
 	}
 	// check if provided label is same as a registered command
 	if _, found := Commands[label]; found {
-		logger.Error("label cannot be same as an existing command")
-		logger.Info("list existing commands with 'help' command")
+		logger.Error(constants.ErrLabelCannotBeCommand)
+		logger.Info(constants.MsgListCommandsWithHelp)
 		return nil
 	}
 
-	username, err := interaction.ReadStringField("enter username > ")
+	user, err := interaction.ReadStringField(constants.MsgEnterCredentialUsername)
 	if err != nil {
-		logger.Error("unable to read input")
+		logger.Error(constants.ErrFailedToReadInput)
 		return err
 	}
 
 	// check if a credential already exists for the label and user
-	check, err := dao.GetCredentialByLabelAndUser(label, username)
+	check, err := dao.GetCredentialByLabelAndUser(label, user)
 	if check != nil {
-		// ask user if they want to override the existing credential
-		options := []string{"yes", "no"}
-		selection := interaction.GetOptionFieldWithRetry(
-			"credential already exists, do you want override it?", options, 1)
-		// return if "no"
-		if selection == 1 {
+		logger.Warn(constants.MsgOperationIsPermanent)
+		confirm, err := interaction.ConfirmWithText(
+			fmt.Sprintf("%s %s", constants.MsgOverwriteCredential, constants.MsgAreYouSure),
+			fmt.Sprintf("overwrite %s %s", label, user),
+		)
+
+		if err != nil {
+			logger.Error(constants.ErrFailedToReadInput)
+		}
+
+		if !confirm {
 			return nil
 		}
 	}
@@ -80,19 +87,19 @@ func AddCmd(args ...string) error {
 		return err
 	}
 
-	secret, err := interaction.ReadSecretField("enter secret > ")
+	secret, err := interaction.ReadSecretField(constants.MsgEnterCredentialSecret)
 	if err != nil {
-		logger.Error("cannot read secret")
+		logger.Error(constants.ErrFailedToReadInput)
 		return err
 	}
-	confirm, err := interaction.ReadSecretField("confirm secret > ")
+	confirm, err := interaction.ReadSecretField(constants.MsgConfirmCredentialSecret)
 	if err != nil {
-		logger.Error("cannot read confirmation")
+		logger.Error(constants.ErrFailedToReadInput)
 		return err
 	}
 
 	if secret != confirm {
-		logger.Error("entered secrets do not match")
+		logger.Error(constants.ErrSecretDoesNotMatch)
 		return nil
 	}
 
@@ -108,7 +115,7 @@ func AddCmd(args ...string) error {
 
 	credential := model.CredentialData{
 		Label:     label,
-		User:      username,
+		User:      user,
 		Nonce:     nonce,
 		Secret:    cipher,
 		Ephemeral: ephemeralPublicKey,
@@ -117,9 +124,9 @@ func AddCmd(args ...string) error {
 	// save credential
 	err = dao.AddCredential(credential.EncodeToString())
 	if err != nil {
-		logger.Error("unable to save credential")
+		logger.Error(constants.ErrFailedToSaveCredential)
 	} else {
-		logger.Info("saved credential to vault")
+		logger.Info(constants.MsgSavedCredential)
 	}
 	return err
 }

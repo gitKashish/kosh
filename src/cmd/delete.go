@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"git.plutolab.org/plutolab/kosh/src/internals/constants"
 	"git.plutolab.org/plutolab/kosh/src/internals/crypto"
 	"git.plutolab.org/plutolab/kosh/src/internals/dao"
 	"git.plutolab.org/plutolab/kosh/src/internals/interaction"
@@ -15,40 +16,40 @@ func init() {
 	Commands["delete"] = CommandInfo{
 		Exec:        DeleteCmd,
 		Usage:       "kosh delete <credential_id>",
-		Description: "Delete a stored credential.",
+		Description: "delete a stored credential.",
 	}
 }
 
 func DeleteCmd(args ...string) error {
 	vault, err := dao.GetVaultInfo()
 	if err != nil {
-		logger.Error("error fetching vault info")
+		logger.Error(constants.ErrFailedToFetchVaultInfo)
 		return err
 	}
 	vaultData := vault.GetRawData()
 
 	if len(args) != 1 {
-		logger.Error("missing argument")
+		logger.Error(constants.ErrInvalidArguments)
 		HelpCmd()
 		return fmt.Errorf("missing argument got %d, want 1", len(args))
 	}
 
 	delete_id, err := strconv.Atoi(args[0])
 	if err != nil {
-		logger.Error("delete id must be a number")
+		logger.Error(constants.ErrIdMustBeInteger)
 		return err
 	}
 
-	password, err := interaction.ReadSecretField("master password > ")
+	password, err := interaction.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
-		logger.Error("cannot read password")
+		logger.Error(constants.ErrFailedToReadInput)
 		return err
 	}
 	// verify master password and get encryption info
 	unlockKey := crypto.GenerateSymmetricKey([]byte(password), vaultData.Salt)
 
 	if _, err := crypto.DecryptSecret(unlockKey, vaultData.Secret, vaultData.Nonce); err != nil {
-		logger.Error("master password is incorrect")
+		logger.Error(constants.ErrIncorrectMasterPassword)
 		return err
 	}
 
@@ -56,7 +57,7 @@ func DeleteCmd(args ...string) error {
 	credential, err := dao.GetCredentialById(delete_id)
 	if credential == nil && err == sql.ErrNoRows {
 		// credential does not exist
-		logger.Error("no matching credential found")
+		logger.Error(constants.ErrCredentialMatchNotFound)
 		return nil
 	}
 
@@ -65,25 +66,26 @@ func DeleteCmd(args ...string) error {
 	}
 
 	// get deletion confirmation
+	logger.Warn(constants.MsgOperationIsPermanent)
 	confirm, err := interaction.ConfirmWithText(
-		"delete operation is permanent and cannot be undone. are you sure?",
+		fmt.Sprintf("%s %s", constants.MsgDeleteCredential, constants.MsgAreYouSure),
 		fmt.Sprintf("delete %s %s", credential.Label, credential.User),
 	)
 	if err != nil {
-		logger.Error("error confirming with text prompt")
+		logger.Error(constants.ErrFailedToReadInput)
 		return err
 	}
 
 	if !confirm {
-		logger.Info("operation aborted")
+		logger.Info(constants.MsgOperationAborted)
 		return nil
 	}
 
 	err = dao.DeleteCredentialById(delete_id)
 	if err != nil {
-		logger.Error("unable to delete credential")
+		logger.Error(constants.ErrFailedToDeleteCredential)
 	} else {
-		logger.Info("credential deleted permanently")
+		logger.Info(constants.MsgDeletedCredential)
 	}
 	return err
 }

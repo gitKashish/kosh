@@ -125,7 +125,7 @@ func GetOptionFieldWithRetry(prompt string, options []string, defaultOption int)
 // ConfirmWithText prompts user to type exact confirmation text
 func ConfirmWithText(prompt, confirmationText string) (bool, error) {
 	logger.Warn("%s", prompt)
-	input, err := ReadStringField(fmt.Sprintf("enter '%s' to confirm or anything else to cancel > ", confirmationText))
+	input, err := ReadStringField(fmt.Sprintf("enter '%s' to confirm or anything else to cancel: ", confirmationText))
 	if err != nil {
 		return false, err
 	}

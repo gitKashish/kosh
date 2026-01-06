@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"git.plutolab.org/plutolab/kosh/src/internals/constants"
 	"git.plutolab.org/plutolab/kosh/src/internals/crypto"
 	"git.plutolab.org/plutolab/kosh/src/internals/dao"
 	"git.plutolab.org/plutolab/kosh/src/internals/interaction"
@@ -13,7 +14,7 @@ import (
 func init() {
 	Commands["init"] = CommandInfo{
 		Exec:        InitCmd,
-		Description: "Initialize vault with master password.",
+		Description: "initialize vault with master password.",
 		Usage:       "kosh init",
 	}
 }
@@ -24,11 +25,11 @@ func InitCmd(args ...string) error {
 	// Check if vault is already initialized
 	initialized, err := dao.IsVaultInitialized()
 	if err != nil {
-		logger.Error("failed to check vault initialization")
+		logger.Error(constants.ErrFailedToInitializeVault)
 		return err
 	}
 	if initialized {
-		logger.Info("vault already initialized")
+		logger.Info(constants.MsgVaultAlreadyInitialized)
 		return nil
 	}
 
@@ -59,9 +60,9 @@ func InitCmd(args ...string) error {
 	// save info to the vault
 	err = dao.InitializeVault(*vault.EncodeToString())
 	if err != nil {
-		logger.Error("error initializing vault")
+		logger.Error(constants.ErrFailedToInitializeVault)
 	} else {
-		logger.Info("vault initialized successfully")
+		logger.Info(constants.MsgVaultInitializedSuccessfully)
 	}
 	return err
 }
@@ -70,22 +71,22 @@ func InitCmd(args ...string) error {
 // password confirmation by re-entering the password. It throws an error if both passwords do not match.
 func getPasswordWithConfirmation() (string, error) {
 
-	password, err := interaction.ReadSecretField("enter master password > ")
+	password, err := interaction.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
-		logger.Error("unable to read password")
+		logger.Error(constants.ErrFailedToReadInput)
 		return "", err
 	}
 
 	// Confirm entered password
-	confirm, err := interaction.ReadSecretField("confirm master password > ")
+	confirm, err := interaction.ReadSecretField(constants.MsgConfirmMasterPassword)
 	if err != nil {
-		logger.Error("unable to read confirmation")
+		logger.Error(constants.ErrFailedToReadInput)
 		return "", err
 	}
 
 	// compare both entries
 	if password != confirm {
-		return "", fmt.Errorf("passwords do not match")
+		return "", fmt.Errorf(constants.ErrPasswordDoesNotMatch)
 	}
 
 	return password, nil

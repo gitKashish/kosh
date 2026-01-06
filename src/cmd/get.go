@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"git.plutolab.org/plutolab/kosh/src/internals/constants"
 	"git.plutolab.org/plutolab/kosh/src/internals/crypto"
 	"git.plutolab.org/plutolab/kosh/src/internals/dao"
 	"git.plutolab.org/plutolab/kosh/src/internals/interaction"
@@ -17,14 +18,14 @@ import (
 func init() {
 	Commands["get"] = CommandInfo{
 		Exec:        GetCmd,
-		Description: "Retrieve a stored credential",
+		Description: "retrieve a stored credential",
 		Usage:       "kosh get <label> <user>",
 	}
 }
 
 func GetCmd(args ...string) error {
 	if len(args) < 2 {
-		logger.Error("missing arguments")
+		logger.Error(constants.ErrInvalidArguments)
 		HelpCmd()
 		return fmt.Errorf("missing arguments, got %d, want %d", len(args), 2)
 	}
@@ -43,7 +44,7 @@ func GetCmd(args ...string) error {
 	credential, err := dao.GetCredentialByLabelAndUser(desiredGroup, desiredUser)
 	if credential == nil && err == sql.ErrNoRows {
 		// credential does not exist
-		logger.Error("no matching credential found")
+		logger.Error(constants.ErrCredentialMatchNotFound)
 		return nil
 	}
 
@@ -52,9 +53,9 @@ func GetCmd(args ...string) error {
 	}
 
 	// get password from user
-	password, err := interaction.ReadSecretField("master password > ")
+	password, err := interaction.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
-		logger.Error("unable to read password")
+		logger.Error(constants.ErrFailedToReadInput)
 		return err
 	}
 
@@ -68,7 +69,7 @@ func GetCmd(args ...string) error {
 	dao.UpdateCredentialAccessCount(credential.Id, 2, time.Now())
 
 	interaction.CopyToClipboard(secret)
-	logger.Info("copied secret to clipboard")
+	logger.Info(constants.MsgCopiedCredential)
 	return nil
 }
 
@@ -77,14 +78,14 @@ func extractSecret(credential *model.CredentialData, vault *model.VaultData, mas
 	unlockKey := crypto.GenerateSymmetricKey(masterPassword, vault.Salt)
 	privateKey, err := crypto.DecryptSecret(unlockKey, vault.Secret, vault.Nonce)
 	if err != nil {
-		logger.Error("master password is incorrect")
+		logger.Error(constants.ErrIncorrectMasterPassword)
 		return nil, err
 	}
 
 	// decrypt credential using private key
 	sharedSecret, err := curve25519.X25519(privateKey, credential.Ephemeral)
 	if err != nil {
-		logger.Error("failed to decrypt credential")
+		logger.Error(constants.ErrFailedToDecryptCredential)
 		return nil, err
 	}
 

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"git.plutolab.org/plutolab/kosh/src/internals/constants"
 	"git.plutolab.org/plutolab/kosh/src/internals/dao"
 	"git.plutolab.org/plutolab/kosh/src/internals/logger"
 	"git.plutolab.org/plutolab/kosh/src/internals/model"
@@ -15,7 +16,8 @@ import (
 func init() {
 	Commands["list"] = CommandInfo{
 		Exec:        ListCmd,
-		Description: "List all credentials associated to a lable or user",
+		Usage:       "kosh list [--label <label>] [--user <user>]",
+		Description: "list all credentials associated to a label or user",
 	}
 }
 
@@ -46,7 +48,7 @@ func ListCmd(args ...string) error {
 
 	credentials, err := dao.SearchCredentialByLabelOrUser(*labelFlag, *userFlag)
 	if err != nil {
-		logger.Error("unable to get matching credential")
+		logger.Error(constants.ErrCredentialMatchNotFound)
 		return err
 	}
 
@@ -71,7 +73,7 @@ func displayCredentials(credentials []model.CredentialSummary, filterLabel, filt
 	logger.Muted("filters: %s\n", strings.Join(filters, " and "))
 
 	if len(credentials) == 0 {
-		logger.Warn("no credential found")
+		logger.Warn(constants.ErrCredentialNotFound)
 		return
 	}
 

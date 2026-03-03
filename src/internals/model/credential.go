@@ -34,6 +34,7 @@ func (c *Credential) GetRawData() *CredentialData {
 }
 
 type CredentialData struct {
+	Id        int
 	Label     string
 	User      string
 	Secret    []byte
@@ -43,6 +44,7 @@ type CredentialData struct {
 
 func (c *CredentialData) EncodeToString() *Credential {
 	return &Credential{
+		Id:        c.Id,
 		Label:     c.Label,
 		User:      c.User,
 		Secret:    encoding.EncodeToBase64String(c.Secret),

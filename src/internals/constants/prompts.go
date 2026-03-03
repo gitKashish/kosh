@@ -9,5 +9,7 @@ const (
 	MsgEnterCredentialSecret   = "enter credential secret: "
 	MsgConfirmCredentialSecret = "confirm credential secret: "
 
+	MsgSelectCredentialFieldToUpdate = "select credential field to update: "
+
 	MsgAreYouSure = "are you sure? "
 )

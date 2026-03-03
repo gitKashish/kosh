@@ -3,6 +3,7 @@ package dao
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"git.plutolab.org/plutolab/kosh/src/internals/constants"
@@ -76,6 +77,53 @@ func AddCredential(credential *model.Credential) error {
 		logger.Error("error inserting credential")
 	}
 
+	return nil
+}
+
+func UpdateCredential(credential *model.Credential) error {
+	var (
+		sets   []string
+		values []any
+	)
+
+	if credential.Label != "" {
+		sets = append(sets, "label = ?")
+		values = append(values, credential.Label)
+	}
+
+	if credential.User != "" {
+		sets = append(sets, "user = ?")
+		values = append(values, credential.User)
+	}
+
+	if credential.Secret != "" {
+		sets = append(sets, "secret = ?")
+		values = append(values, credential.Secret)
+	}
+
+	if credential.Ephemeral != "" {
+		sets = append(sets, "ephemeral = ?")
+		values = append(values, credential.Ephemeral)
+	}
+
+	if credential.Nonce != "" {
+		sets = append(sets, "nonce = ?")
+		values = append(values, credential.Nonce)
+	}
+
+	query := `
+		UPDATE credentials
+		SET ` + strings.Join(sets, ", ") + `
+		WHERE id = ?
+	`
+
+	values = append(values, credential.Id)
+
+	_, err := db.Exec(query, values...)
+	if err != nil {
+		logger.Debug("update credential query: %v", err)
+		return err
+	}
 	return nil
 }
 
@@ -217,7 +265,7 @@ func UpdateCredentialAccessCount(id, delta int, accessTime time.Time) error {
 		logger.Debug("unable to update credential access info : %d at %s", id, accessTime)
 	}
 
-	if constants.ACCESS_COUNT_RESET_THRESHOLD > 0 {
+	if constants.AccessCountResetThreshold > 0 {
 		accessCount := 0
 		query := `SELECT access_count FROM credentials WHERE id = ?`
 		result := db.QueryRow(query, id)
@@ -227,7 +275,7 @@ func UpdateCredentialAccessCount(id, delta int, accessTime time.Time) error {
 			return err
 		}
 
-		if accessCount > constants.ACCESS_COUNT_RESET_THRESHOLD {
+		if accessCount > constants.AccessCountResetThreshold {
 			logger.Debug("access count baseline reset triggered")
 			// reset access count base-line to prevent a single credentials from dominating
 			// the search un-fairly.
@@ -245,7 +293,7 @@ func UpdateCredentialAccessCount(id, delta int, accessTime time.Time) error {
 // set to 0.
 func ResetAccessCountBaseline() error {
 	query := `UPDATE credentials SET access_count = MAX(access_count - ?, 0)`
-	_, err := db.Exec(query, constants.ACCESS_COUNT_RESET_THRESHOLD)
+	_, err := db.Exec(query, constants.AccessCountResetThreshold)
 	if err != nil {
 		logger.Debug("failed to update access count baseline")
 		return err

@@ -11,8 +11,9 @@ const (
 	ErrPasswordDoesNotMatch    = "password does not match"
 	ErrIncorrectMasterPassword = "incorrect master password"
 
-	ErrLabelCannotBeCommand = "credential label cannot be same as command"
-	ErrSecretDoesNotMatch   = "credential secret does not match"
+	ErrLabelCannotBeCommand    = "credential label cannot be same as command"
+	ErrSecretDoesNotMatch      = "credential secret does not match"
+	ErrCredentialAlreadyExists = "credential already exists"
 
 	ErrFailedToFetchCredential   = "unable to fetch credential/s"
 	ErrFailedToSaveCredential    = "unable to save credential"

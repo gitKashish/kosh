@@ -48,6 +48,8 @@ func generateCmd(args ...string) error {
 	symbol := flagSet.Bool("symbol", true, "include special symbols")
 	require := flagSet.String("require", "", "password requirements")
 
+	noSave := flagSet.Bool("no-save", false, "generate password but do not save it")
+
 	var buf bytes.Buffer
 	flagSet.SetOutput(&buf)
 	if err := flagSet.Parse(args); err != nil {
@@ -59,16 +61,12 @@ func generateCmd(args ...string) error {
 		return err
 	}
 
-	logger.Debug("length %d, upper %t, lower %t, digit %t, symbol %t, require %s", *length, *upper, *lower, *digit, *symbol, *require)
-
 	// positional arguments
-	if len(flagSet.Args()) < 2 {
+	if len(flagSet.Args()) < 2 && !*noSave {
+		// Ignore args in case of `--no-save` since they don't matter if we don't have to save the credential.
 		logger.Error(constants.ErrInvalidArguments)
 		return fmt.Errorf("wrong arguments got %d, want %d", len(flagSet.Args()), 2)
 	}
-
-	label := flagSet.Arg(0)
-	user := flagSet.Arg(1)
 
 	requirement, err := parseRequirement(*upper, *lower, *digit, *symbol, *require)
 	if err != nil {
@@ -108,6 +106,22 @@ func generateCmd(args ...string) error {
 
 		*length = requiredLength
 	}
+
+	generatedSecret, err := generatePassword(*length, *upper, *lower, *digit, *symbol, requirement)
+	if err != nil {
+		logger.Error("unable to generate credential")
+		return err
+	}
+
+	// In case `--no-save` copy the password to clipboard, no need to fetch vault data or verify password
+	if *noSave {
+		interaction.CopyToClipboard(generatedSecret)
+		logger.Info("%s", constants.MsgCopiedCredential)
+		return nil
+	}
+
+	label := flagSet.Arg(0)
+	user := flagSet.Arg(1)
 
 	// fetch vault info
 	// fetch vault info
@@ -168,12 +182,6 @@ func generateCmd(args ...string) error {
 			logger.Info(constants.MsgOperationAborted)
 			return nil
 		}
-	}
-
-	generatedSecret, err := generatePassword(*length, *upper, *lower, *digit, *symbol, requirement)
-	if err != nil {
-		logger.Error("unable to generate credential")
-		return err
 	}
 
 	ephemeralPrivateKey, ephemeralPublicKey := crypto.GenerateAsymmetricKeyPair()

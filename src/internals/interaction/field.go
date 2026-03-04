@@ -79,7 +79,7 @@ func GetOptionField(prompt string, options []string, defaultOption int) (int, er
 	}
 
 	// Get user input
-	fmt.Printf("\n%s[?]%s enter choice [1-%d] (default: %d): ",
+	fmt.Printf("%s[?]%s enter choice [1-%d] (default: %d): ",
 		logger.ColorCyan, logger.ColorReset, len(options), defaultOption+1)
 
 	reader := bufio.NewReader(os.Stdin)

@@ -142,6 +142,11 @@ func updateLabel(credential *model.Credential) error {
 		Label: newLabel,
 		Id:    credential.Id,
 	})
+
+	if err == nil {
+		logger.Info("%s", constants.MsgUpdatedCredential)
+	}
+
 	return err
 }
 
@@ -187,6 +192,11 @@ func updateUser(credential *model.Credential) error {
 		User: newUser,
 		Id:   credential.Id,
 	})
+
+	if err == nil {
+		logger.Info("%s", constants.MsgUpdatedCredential)
+	}
+
 	return err
 }
 
@@ -242,10 +252,13 @@ func updateSecret(credential *model.Credential, vaultData *model.VaultData) erro
 		Ephemeral: ephemeralPublicKey,
 	}
 
-	if err := dao.UpdateCredential(updatedCredential.EncodeToString()); err != nil {
+	err = dao.UpdateCredential(updatedCredential.EncodeToString())
+
+	if err != nil {
 		logger.Error(constants.ErrFailedToSaveCredential)
 		logger.Debug("%v", err)
-		return err
+	} else {
+		logger.Info("%s", constants.MsgUpdatedCredential)
 	}
 
 	return nil

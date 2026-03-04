@@ -8,6 +8,7 @@ const (
 	MsgDeleteCredential    = "delete credential?"
 	MsgSavedCredential     = "saved credential in the vault successfully"
 	MsgDeletedCredential   = "permanently deleted credential successfully"
+	MsgUpdatedCredential   = "updated credential successfully"
 
 	MsgListCommandsWithHelp   = "list commands with `help` command"
 	MsgListCredentialWithList = "list credentials with `list` command"

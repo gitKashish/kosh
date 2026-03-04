@@ -11,20 +11,18 @@ jobs:
   test:
     runs-on: ubuntu-latest
     container:
-      # Use the official Node image so the 'checkout' and 'setup-go' actions can run
       image: node:20-bookworm 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: https://github.com/actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: https://github.com/actions/setup-go@v5
         with:
           go-version: '1.26'
-          cache: false
+          cache: false 
 
       - name: Run Tests
-        # The 'setup-go' step above makes the 'go' command available here
         run: go test -v ./...
 
   build-release:
@@ -35,21 +33,21 @@ jobs:
       image: node:20-bookworm
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: https://github.com/actions/checkout@v4
         with:
-          fetch-depth: 0 # GoReleaser needs full history for changelogs
+          fetch-depth: 0 
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: https://github.com/actions/setup-go@v5
         with:
           go-version: '1.26'
-          cache: false
+          cache: false 
 
       - name: Run GoReleaser
-        uses: github.com/goreleaser/goreleaser-action@v6
+        # The https:// prefix is the magic key here!
+        uses: https://github.com/goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           args: release --clean
         env:
-          # Token from your Forgejo 'Settings > Applications'
           GITEA_TOKEN: ${{ secrets.FORGEJO_TOKEN }}

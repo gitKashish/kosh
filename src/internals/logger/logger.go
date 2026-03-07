@@ -11,7 +11,7 @@ const (
 	BUILD_MODE_DEBUG      = "debug"
 )
 
-var BuildMode = BUILD_MODE_PRODUCTION
+var BuildMode = BUILD_MODE_DEBUG
 
 const (
 	ColorReset  = "\033[0m"

@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"runtime/secret"
 
 	"git.plutolab.org/plutolab/kosh/src/cmd"
 	"git.plutolab.org/plutolab/kosh/src/internals/dao"
@@ -29,21 +30,22 @@ func main() {
 	command := os.Args[1]
 	args := os.Args[2:]
 
-	if c, ok := cmd.Commands[command]; ok {
-		// execute registered command
-		if err := c.Exec(args...); err != nil {
-			logger.Debug("%s", err.Error())
-		}
+	c, ok := cmd.Commands[command]
+	if !ok {
+		// Fetch default command
+		c, ok = cmd.Commands[DEFAULT_COMMAND]
+		args = os.Args[1:]
+	}
+
+	if !ok {
+		logger.Error("unknown command %s\n", command)
+		cmd.HelpCmd()
+		os.Exit(1)
 	} else {
-		// execute default command with provided args, if no registered command is found
-		if c, ok := cmd.Commands[DEFAULT_COMMAND]; ok {
-			if err := c.Exec(os.Args[1:]...); err != nil {
+		secret.Do(func() {
+			if err := c.Exec(args...); err != nil {
 				logger.Debug("%s", err.Error())
 			}
-		} else {
-			logger.Error("unknown command %s\n", command)
-			cmd.HelpCmd()
-			os.Exit(1)
-		}
+		})
 	}
 }

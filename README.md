@@ -1,3 +1,5 @@
+> [!IMPORTANT]
+> The Project has been moved to a self hosted code forge at https://git.plutolab.org
 # Kosh — Secure, Local-First Password Manager
 
 **Developer & Contributor README**

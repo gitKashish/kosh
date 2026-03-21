@@ -83,7 +83,7 @@ func (s *VaultService) DecryptCredential(credential *model.Credential, password 
 	unlockKey := crypto.GenerateSymmetricKey([]byte(password), vaultData.Salt)
 
 	// Decrypt vault private key
-	vaultPrivateKey, err := crypto.DecryptSecret(unlockKey, vaultData.PublicKey, vaultData.Nonce)
+	vaultPrivateKey, err := crypto.DecryptSecret(unlockKey, vaultData.Secret, vaultData.Nonce)
 	if err != nil {
 		logger.Debug("decryptCredential:failed to get private key from vault")
 	}

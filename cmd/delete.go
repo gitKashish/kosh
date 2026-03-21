@@ -10,35 +10,37 @@ import (
 	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"git.plutolab.org/plutolab/kosh/internal/storage"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
+	"github.com/spf13/cobra"
 )
 
-func init() {
-	Commands["delete"] = CommandInfo{
-		Exec:        DeleteCmd,
-		Usage:       "kosh delete <credential_id>",
-		Description: "delete a stored credential.",
-	}
+var deleteCmd = &cobra.Command{
+	Use:   "delete <id>",
+	Short: "Delete an existing credential by ID",
+
+	Args: cobra.ExactArgs(1),
+
+	RunE: func(cmd *cobra.Command, args []string) error {
+		id, err := strconv.Atoi(args[0])
+		if err != nil {
+			logger.Error(constants.ErrIdMustBeInteger)
+			return err
+		}
+
+		return runDelete(id)
+	},
 }
 
-func DeleteCmd(args ...string) error {
+func init() {
+	rootCmd.AddCommand(deleteCmd)
+}
+
+func runDelete(id int) error {
 	vault, err := storage.GetVaultInfo()
 	if err != nil {
 		logger.Error(constants.ErrFailedToFetchVaultInfo)
 		return err
 	}
 	vaultData := vault.GetRawData()
-
-	if len(args) != 1 {
-		logger.Error(constants.ErrInvalidArguments)
-		HelpCmd()
-		return fmt.Errorf("missing argument got %d, want 1", len(args))
-	}
-
-	delete_id, err := strconv.Atoi(args[0])
-	if err != nil {
-		logger.Error(constants.ErrIdMustBeInteger)
-		return err
-	}
 
 	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
@@ -54,7 +56,7 @@ func DeleteCmd(args ...string) error {
 	}
 
 	// check credential existence
-	credential, err := storage.GetCredentialById(delete_id)
+	credential, err := storage.GetCredentialById(id)
 	if credential == nil && err == sql.ErrNoRows {
 		// credential does not exist
 		logger.Error(constants.ErrCredentialMatchNotFound)
@@ -81,7 +83,7 @@ func DeleteCmd(args ...string) error {
 		return nil
 	}
 
-	err = storage.DeleteCredentialById(delete_id)
+	err = storage.DeleteCredentialById(id)
 	if err != nil {
 		logger.Error(constants.ErrFailedToDeleteCredential)
 	} else {

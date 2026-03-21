@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"bytes"
-	"flag"
 	"fmt"
 	"strings"
 	"time"
@@ -11,48 +9,40 @@ import (
 	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"git.plutolab.org/plutolab/kosh/internal/model"
 	"git.plutolab.org/plutolab/kosh/internal/storage"
+	"github.com/spf13/cobra"
 )
 
-func init() {
-	Commands["list"] = CommandInfo{
-		Exec:        ListCmd,
-		Usage:       "kosh list [--label <label>] [--user <user>]",
-		Description: "list all credentials associated to a label or user",
-	}
+var (
+	listLabel string
+	listUser  string
+)
+
+var listCmd = &cobra.Command{
+	Use:   "list",
+	Short: "Show a list of saved credentials",
+	Args:  cobra.ExactArgs(0),
+
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runList(listLabel, listUser)
+	},
 }
 
-func ListCmd(args ...string) error {
+func init() {
+	listCmd.Flags().StringVarP(&listLabel, "label", "l", "", "filter creds that contain label string")
+	listCmd.Flags().StringVarP(&listUser, "user", "u", "", "filter creds that contain user string")
 
-	// command flags
-	flagSet := flag.NewFlagSet("list", flag.ContinueOnError)
+	rootCmd.AddCommand(listCmd)
+}
 
-	var buf bytes.Buffer
-	flagSet.SetOutput(&buf)
+func runList(label string, user string) error {
 
-	userFlag := flagSet.String("user", "", "filter by username")
-	labelFlag := flagSet.String("label", "", "filter by label")
-
-	if err := flagSet.Parse(args); err != nil {
-		if err != flag.ErrHelp {
-			errorMessage := strings.Split(buf.String(), "\n")[0]
-			logger.Error("%s\n", errorMessage)
-		}
-		printListHelp()
-		return err
-	}
-
-	// if no flag filter but has positional args then use them as user filter
-	if *userFlag == "" && *labelFlag == "" && len(flagSet.Args()) > 0 {
-		*userFlag = flagSet.Arg(0)
-	}
-
-	credentials, err := storage.SearchCredentialByLabelOrUser(*labelFlag, *userFlag)
+	credentials, err := storage.SearchCredentialByLabelOrUser(label, user)
 	if err != nil {
 		logger.Error(constants.ErrCredentialMatchNotFound)
 		return err
 	}
 
-	displayCredentials(credentials, *labelFlag, *userFlag)
+	displayCredentials(credentials, label, user)
 
 	return nil
 }
@@ -99,22 +89,4 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
-}
-
-func printListHelp() {
-	logger.Info("Usage: kosh list [options]")
-	fmt.Println()
-	fmt.Println("List stored credentials with optional filtering")
-	fmt.Println()
-	fmt.Println("Options:")
-	fmt.Println("  --label <text>    Filter by label (partial match)")
-	fmt.Println("  --user <text>     Filter by username (partial match)")
-	fmt.Println("  -h, --help        Show this help")
-	fmt.Println()
-	fmt.Println("Examples:")
-	fmt.Println("  kosh list                                # List all credentials")
-	fmt.Println("  kosh list pluto                          # Search users containing 'pluto'")
-	fmt.Println("  kosh list --user pluto                   # Same as above")
-	fmt.Println("  kosh list --label github                 # Search labels containing 'github'")
-	fmt.Println("  kosh list --user pluto --label github    # Search users contating 'pluto' and labels containing 'github'")
 }

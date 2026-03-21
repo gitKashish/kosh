@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/spf13/cobra"
 	"golang.org/x/crypto/curve25519"
 
 	"git.plutolab.org/plutolab/kosh/internal/constants"
@@ -15,15 +16,20 @@ import (
 	"git.plutolab.org/plutolab/kosh/internal/ui"
 )
 
-func init() {
-	Commands["add"] = CommandInfo{
-		Exec:        AddCmd,
-		Description: "add a new credential to vault",
-		Usage:       "kosh add",
-	}
+var addCmd = &cobra.Command{
+	Use:   "add",
+	Short: "Interactively add a new credential to the vault",
+
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runAdd()
+	},
 }
 
-func AddCmd(args ...string) error {
+func init() {
+	rootCmd.AddCommand(addCmd)
+}
+
+func runAdd() error {
 	// load vault info
 	vault, err := storage.GetVaultInfo()
 	if err != nil {
@@ -54,7 +60,7 @@ func AddCmd(args ...string) error {
 		return err
 	}
 	// check if provided label is same as a registered command
-	if _, found := Commands[label]; found {
+	if reserved := isKnownCommand(label); reserved {
 		logger.Error(constants.ErrLabelCannotBeCommand)
 		logger.Info(constants.MsgListCommandsWithHelp)
 		return nil

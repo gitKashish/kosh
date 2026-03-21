@@ -9,19 +9,25 @@ import (
 	"git.plutolab.org/plutolab/kosh/internal/model"
 	"git.plutolab.org/plutolab/kosh/internal/storage"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
+	"github.com/spf13/cobra"
 )
 
+var initCmd = &cobra.Command{
+	Use:   "init",
+	Short: "Initialize vault with password manager",
+
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runInit()
+	},
+}
+
 func init() {
-	Commands["init"] = CommandInfo{
-		Exec:        InitCmd,
-		Description: "initialize vault with master password.",
-		Usage:       "kosh init",
-	}
+	rootCmd.AddCommand(initCmd)
 }
 
 // InitCmd sets up the vault, generates crypto information based on user's provided
 // master password
-func InitCmd(args ...string) error {
+func runInit() error {
 	// Check if vault is already initialized
 	initialized, err := storage.IsVaultInitialized()
 	if err != nil {

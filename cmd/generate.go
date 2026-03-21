@@ -1,10 +1,8 @@
 package cmd
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
-	"flag"
 	"fmt"
 	"math/big"
 	"slices"
@@ -17,11 +15,22 @@ import (
 	"git.plutolab.org/plutolab/kosh/internal/model"
 	"git.plutolab.org/plutolab/kosh/internal/storage"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
+	"github.com/spf13/cobra"
 	"golang.org/x/crypto/curve25519"
 )
 
 type CharGroup string
 type RequireConfig map[CharGroup]int
+
+var (
+	genLength  int
+	genUpper   bool
+	genLower   bool
+	genDigit   bool
+	genSymbol  bool
+	genRequire string
+	genNoSave  bool
+)
 
 const (
 	LowerCharGroup  = "lower"
@@ -30,45 +39,48 @@ const (
 	SymbolCharGroup = "symbol"
 )
 
-func init() {
-	Commands["generate"] = CommandInfo{
-		Exec:        generateCmd,
-		Usage:       "kosh generate [options] <label> <user>",
-		Description: "generate a strong password and store as credential",
-	}
+var generateCmd = &cobra.Command{
+	Use:   "generate <label> <user>",
+	Short: "Generate a strong password with specified restrictions",
+	Long: `Generate a strong random password and store it securely in the vault.
+The generated password is encrypted and copied to the clipboard.`,
+
+	Example: `	Generate a default password:
+	kosh generate github alice
+
+	Generate a 32-character password with strict requirements:
+    	kosh generate -l 32 --require "upper=2,lower=10,digit=5,symbol=3" email alice
+
+	Generate a password without symbols:
+    	kosh generate --symbol=false server root`,
+
+	Args: cobra.RangeArgs(0, 2),
+
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 2 && !genNoSave {
+			logger.Error(constants.ErrInvalidArguments)
+			return fmt.Errorf("wrong arguments got %d, want 2 (unless --no-save is used)", len(args))
+		}
+
+		return runGenerate(args...)
+	},
 }
 
-func generateCmd(args ...string) error {
-	flagSet := flag.NewFlagSet("generate", flag.ContinueOnError)
+func init() {
+	generateCmd.Flags().IntVarP(&genLength, "length", "l", 20, "length of the password")
+	generateCmd.Flags().BoolVar(&genUpper, "upper", true, "include uppercase letters")
+	generateCmd.Flags().BoolVar(&genLower, "lower", true, "include uppercase letters")
+	generateCmd.Flags().BoolVar(&genDigit, "digit", true, "include digits")
+	generateCmd.Flags().BoolVar(&genSymbol, "symbol", true, "include special symbols")
+	generateCmd.Flags().StringVarP(&genRequire, "require", "r", "", "password requirements (e.g., upper=2,digit=3)")
+	generateCmd.Flags().BoolVarP(&genNoSave, "no-save", "n", false, "generate password but do not save it")
 
-	length := flagSet.Int("length", 20, "length of the password")
-	upper := flagSet.Bool("upper", true, "include uppercase letters")
-	lower := flagSet.Bool("lower", true, "include lowercase letters")
-	digit := flagSet.Bool("digit", true, "include digits")
-	symbol := flagSet.Bool("symbol", true, "include special symbols")
-	require := flagSet.String("require", "", "password requirements")
+	rootCmd.AddCommand(generateCmd)
+}
 
-	noSave := flagSet.Bool("no-save", false, "generate password but do not save it")
+func runGenerate(args ...string) error {
 
-	var buf bytes.Buffer
-	flagSet.SetOutput(&buf)
-	if err := flagSet.Parse(args); err != nil {
-		if err != flag.ErrHelp {
-			errorMessage := strings.Split(buf.String(), "\n")[0]
-			logger.Error("%s\n", errorMessage)
-		}
-		printGenerateHelp()
-		return err
-	}
-
-	// positional arguments
-	if len(flagSet.Args()) < 2 && !*noSave {
-		// Ignore args in case of `--no-save` since they don't matter if we don't have to save the credential.
-		logger.Error(constants.ErrInvalidArguments)
-		return fmt.Errorf("wrong arguments got %d, want %d", len(flagSet.Args()), 2)
-	}
-
-	requirement, err := parseRequirement(*upper, *lower, *digit, *symbol, *require)
+	requirement, err := parseRequirement(genUpper, genLower, genDigit, genSymbol, genRequire)
 	if err != nil {
 		logger.Error("invalid `require` flag values")
 		return err
@@ -87,8 +99,8 @@ func generateCmd(args ...string) error {
 		}
 	}
 
-	if requiredLength > *length {
-		logger.Warn("required length (%d characters) is greater than password length (%d characters)", requiredLength, *length)
+	if requiredLength > genLength {
+		logger.Warn("required length (%d characters) is greater than password length (%d characters)", requiredLength, genLength)
 		confirm, err := ui.ConfirmYesNo(
 			"generate password with the required length?",
 			false,
@@ -104,24 +116,24 @@ func generateCmd(args ...string) error {
 			return nil
 		}
 
-		*length = requiredLength
+		genLength = requiredLength
 	}
 
-	generatedSecret, err := generatePassword(*length, *upper, *lower, *digit, *symbol, requirement)
+	generatedSecret, err := generatePassword(genLength, genUpper, genLower, genDigit, genSymbol, requirement)
 	if err != nil {
 		logger.Error("unable to generate credential")
 		return err
 	}
 
 	// In case `--no-save` copy the password to clipboard, no need to fetch vault data or verify password
-	if *noSave {
+	if genNoSave {
 		ui.CopyToClipboard(generatedSecret)
 		logger.Info("%s", constants.MsgCopiedCredential)
 		return nil
 	}
 
-	label := flagSet.Arg(0)
-	user := flagSet.Arg(1)
+	label := args[0]
+	user := args[1]
 
 	// fetch vault info
 	// fetch vault info
@@ -145,7 +157,7 @@ func generateCmd(args ...string) error {
 	}
 
 	// ensure that label is not a command
-	if _, found := Commands[label]; found {
+	if reserved := isKnownCommand(label); reserved {
 		logger.Error(constants.ErrLabelCannotBeCommand)
 		logger.Info(constants.MsgListCommandsWithHelp)
 		return nil
@@ -360,67 +372,4 @@ func randomChar(chars string) (byte, error) {
 		return 0, err
 	}
 	return chars[i], nil
-}
-
-func printGenerateHelp() {
-	fmt.Println(`
-Usage:
-  kosh generate [options] <label> <user>
-
-Description:
-  Generate a strong random password and store it securely in the vault.
-  The generated password is encrypted and copied to the clipboard.
-
-Arguments:
-  label        Identifier for the credential (must not match a command name)
-  user         Username or account associated with the credential
-
-Options:
-  -length int
-        Length of the generated password (default: 20)
-
-  -upper
-        Include uppercase letters (A-Z) (default: true)
-
-  -lower
-        Include lowercase letters (a-z) (default: true)
-
-  -digit
-        Include digits (0-9) (default: true)
-
-  -symbol
-        Include special symbols (!@#$%^&*()-_=+[]{}<>?/|) (default: true)
-
-  -require string
-        Enforce minimum character counts per group.
-        Format: group=count[,group=count...]
-
-        Valid groups:
-          lower    lowercase letters
-          upper    uppercase letters
-          digit    digits
-          symbol   special symbols
-
-        Example:
-          -require "upper=2,digit=3,symbol=1"
-
-Behavior:
-  • If required characters exceed the password length, you will be prompted
-    to increase the length automatically.
-  • If a credential with the same label and user exists, overwrite confirmation
-    is required.
-  • Master password verification is required to unlock the vault.
-
-Examples:
-  Generate a default password:
-    kosh generate github alice
-
-  Generate a 32-character password with strict requirements:
-    kosh generate \
-      -length 32 \
-      -require "upper=2,lower=10,digit=5,symbol=3" \
-      email alice 
-
-  Generate a password without symbols:
-    kosh generate -symbol=false server root`)
 }

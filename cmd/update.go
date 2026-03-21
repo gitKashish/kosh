@@ -12,36 +12,36 @@ import (
 	"git.plutolab.org/plutolab/kosh/internal/model"
 	"git.plutolab.org/plutolab/kosh/internal/storage"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
+	"github.com/spf13/cobra"
 	"golang.org/x/crypto/curve25519"
 )
 
-func init() {
-	Commands["update"] = CommandInfo{
-		Exec:        UpdateCmd,
-		Description: "update existing credential",
-		Usage:       "kosh update <id>",
-	}
+var updateCmd = &cobra.Command{
+	Use:   "update <id>",
+	Short: "Update an existing credential by ID",
+	Args:  cobra.ExactArgs(1),
+
+	RunE: func(cmd *cobra.Command, args []string) error {
+		id, err := strconv.Atoi(args[0])
+		if err != nil {
+			logger.Error(constants.ErrIdMustBeInteger)
+			return err
+		}
+		return runUpdate(id)
+	},
 }
 
-func UpdateCmd(args ...string) error {
+func init() {
+	rootCmd.AddCommand(updateCmd)
+}
+
+func runUpdate(id int) error {
 	vault, err := storage.GetVaultInfo()
 	if err != nil {
 		logger.Error(constants.ErrFailedToFetchVaultInfo)
 		return err
 	}
 	vaultData := vault.GetRawData()
-
-	if len(args) != 1 {
-		logger.Error(constants.ErrInvalidArguments)
-		HelpCmd()
-		return fmt.Errorf("missing argument got %d, want 1", len(args))
-	}
-
-	update_id, err := strconv.Atoi(args[0])
-	if err != nil {
-		logger.Error(constants.ErrIdMustBeInteger)
-		return err
-	}
 
 	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
@@ -57,7 +57,7 @@ func UpdateCmd(args ...string) error {
 	}
 
 	// check credential existence
-	credential, err := storage.GetCredentialById(update_id)
+	credential, err := storage.GetCredentialById(id)
 	if err == sql.ErrNoRows {
 		// credential does not exist
 		logger.Error(constants.ErrCredentialNotFound)

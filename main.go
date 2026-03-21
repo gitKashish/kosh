@@ -1,11 +1,7 @@
 package main
 
 import (
-	"os"
-
 	"git.plutolab.org/plutolab/kosh/cmd"
-	"git.plutolab.org/plutolab/kosh/internal/logger"
-	"git.plutolab.org/plutolab/kosh/internal/storage"
 )
 
 const (
@@ -13,37 +9,5 @@ const (
 )
 
 func main() {
-	// initialize connection with the database
-	if err := storage.Initialize(); err != nil {
-		logger.Error("error connecting to database")
-		logger.Debug("%s", err.Error())
-		os.Exit(1)
-	}
-	defer storage.Close()
-
-	if len(os.Args) < 2 {
-		cmd.HelpCmd()
-		os.Exit(2)
-	}
-
-	command := os.Args[1]
-	args := os.Args[2:]
-
-	if c, ok := cmd.Commands[command]; ok {
-		// execute registered command
-		if err := c.Exec(args...); err != nil {
-			logger.Debug("%s", err.Error())
-		}
-	} else {
-		// execute default command with provided args, if no registered command is found
-		if c, ok := cmd.Commands[DEFAULT_COMMAND]; ok {
-			if err := c.Exec(os.Args[1:]...); err != nil {
-				logger.Debug("%s", err.Error())
-			}
-		} else {
-			logger.Error("unknown command %s\n", command)
-			cmd.HelpCmd()
-			os.Exit(1)
-		}
-	}
+	cmd.Execute()
 }

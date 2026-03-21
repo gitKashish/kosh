@@ -3,7 +3,6 @@ package cmd
 import (
 	"crypto/sha256"
 	"database/sql"
-	"fmt"
 	"time"
 
 	"git.plutolab.org/plutolab/kosh/internal/constants"
@@ -12,26 +11,25 @@ import (
 	"git.plutolab.org/plutolab/kosh/internal/model"
 	"git.plutolab.org/plutolab/kosh/internal/storage"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
+	"github.com/spf13/cobra"
 	"golang.org/x/crypto/curve25519"
 )
 
-func init() {
-	Commands["get"] = CommandInfo{
-		Exec:        GetCmd,
-		Description: "retrieve a stored credential",
-		Usage:       "kosh get <label> <user>",
-	}
+var getCmd = &cobra.Command{
+	Use:   "get <label> <user>",
+	Short: "Retrieve credential by exact label and user",
+	Args:  cobra.ExactArgs(2),
+
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runGet(args[0], args[1])
+	},
 }
 
-func GetCmd(args ...string) error {
-	if len(args) < 2 {
-		logger.Error(constants.ErrInvalidArguments)
-		HelpCmd()
-		return fmt.Errorf("missing arguments, got %d, want %d", len(args), 2)
-	}
+func init() {
+	rootCmd.AddCommand(getCmd)
+}
 
-	desiredGroup := args[0]
-	desiredUser := args[1]
+func runGet(desiredGroup string, desiredUser string) error {
 
 	// fetch vault info
 	vault, err := storage.GetVaultInfo()

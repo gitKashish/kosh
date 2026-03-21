@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"time"
 
 	"git.plutolab.org/plutolab/kosh/internal/constants"
@@ -9,29 +8,31 @@ import (
 	"git.plutolab.org/plutolab/kosh/internal/search"
 	"git.plutolab.org/plutolab/kosh/internal/storage"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
+	"github.com/spf13/cobra"
 )
 
-func init() {
-	Commands["search"] = CommandInfo{
-		Exec:        SearchCmd,
-		Description: "fuzzy search a credential and copy the best match.",
-		Usage:       "kosh search <label> <user>",
-	}
+var searchCmd = &cobra.Command{
+	Use:   "search <label> <user>",
+	Short: "Retrieve a credential via fuzzy search",
+	Args:  cobra.RangeArgs(1, 2),
+
+	RunE: func(cmd *cobra.Command, args []string) error {
+		var label, user string
+
+		label = args[0]
+		if len(args) > 1 {
+			user = args[1]
+		}
+
+		return runSearch(label, user)
+	},
 }
 
-func SearchCmd(args ...string) error {
-	if len(args) < 1 {
-		logger.Error(constants.ErrInvalidArguments)
-		HelpCmd()
-		return fmt.Errorf("missing arguments, got %d, want %d", len(args), 2)
-	}
+func init() {
+	rootCmd.AddCommand(searchCmd)
+}
 
-	var queryLabel, queryUser string
-	queryLabel = args[0]
-	if len(args) > 1 {
-		queryUser = args[1]
-	}
-
+func runSearch(queryLabel, queryUser string) error {
 	credentials, err := storage.GetAllCredentials()
 	if err != nil {
 		logger.Error(constants.ErrFailedToFetchCredential)

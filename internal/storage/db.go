@@ -1,11 +1,11 @@
-package dao
+package storage
 
 import (
 	"database/sql"
 	"os"
 	"path/filepath"
 
-	"git.plutolab.org/plutolab/kosh/src/internals/logger"
+	"git.plutolab.org/plutolab/kosh/internal/logger"
 	_ "github.com/mattn/go-sqlite3"
 )
 

@@ -1,10 +1,10 @@
-package interaction
+package ui
 
 import (
 	"os"
 	"os/exec"
 
-	"git.plutolab.org/plutolab/kosh/src/internals/logger"
+	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"golang.design/x/clipboard"
 )
 

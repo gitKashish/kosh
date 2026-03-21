@@ -1,4 +1,4 @@
-package interaction
+package ui
 
 import (
 	"bufio"
@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"git.plutolab.org/plutolab/kosh/src/internals/logger"
+	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"golang.org/x/term"
 )
 

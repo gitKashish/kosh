@@ -1,11 +1,11 @@
-package dao
+package storage
 
 import (
 	"database/sql"
 	"fmt"
 
-	"git.plutolab.org/plutolab/kosh/src/internals/logger"
-	"git.plutolab.org/plutolab/kosh/src/internals/model"
+	"git.plutolab.org/plutolab/kosh/internal/logger"
+	"git.plutolab.org/plutolab/kosh/internal/model"
 )
 
 // IsVaultInitialized checks if vault exists and has a valid record in it

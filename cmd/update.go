@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"strconv"
 
-	"git.plutolab.org/plutolab/kosh/src/internals/constants"
-	"git.plutolab.org/plutolab/kosh/src/internals/crypto"
-	"git.plutolab.org/plutolab/kosh/src/internals/dao"
-	"git.plutolab.org/plutolab/kosh/src/internals/interaction"
-	"git.plutolab.org/plutolab/kosh/src/internals/logger"
-	"git.plutolab.org/plutolab/kosh/src/internals/model"
+	"git.plutolab.org/plutolab/kosh/internal/constants"
+	"git.plutolab.org/plutolab/kosh/internal/crypto"
+	"git.plutolab.org/plutolab/kosh/internal/logger"
+	"git.plutolab.org/plutolab/kosh/internal/model"
+	"git.plutolab.org/plutolab/kosh/internal/storage"
+	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"golang.org/x/crypto/curve25519"
 )
 
@@ -24,7 +24,7 @@ func init() {
 }
 
 func UpdateCmd(args ...string) error {
-	vault, err := dao.GetVaultInfo()
+	vault, err := storage.GetVaultInfo()
 	if err != nil {
 		logger.Error(constants.ErrFailedToFetchVaultInfo)
 		return err
@@ -43,7 +43,7 @@ func UpdateCmd(args ...string) error {
 		return err
 	}
 
-	password, err := interaction.ReadSecretField(constants.MsgEnterMasterPassword)
+	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
 		logger.Error(constants.ErrFailedToReadInput)
 		return err
@@ -57,7 +57,7 @@ func UpdateCmd(args ...string) error {
 	}
 
 	// check credential existence
-	credential, err := dao.GetCredentialById(update_id)
+	credential, err := storage.GetCredentialById(update_id)
 	if err == sql.ErrNoRows {
 		// credential does not exist
 		logger.Error(constants.ErrCredentialNotFound)
@@ -72,7 +72,7 @@ func UpdateCmd(args ...string) error {
 	// TODO: show what credential is the user updating
 
 	updateOptions := []string{"label", "user", "secret", "abort"}
-	option := interaction.GetOptionFieldWithRetry(
+	option := ui.GetOptionFieldWithRetry(
 		constants.MsgSelectCredentialFieldToUpdate,
 		updateOptions,
 		3,
@@ -101,13 +101,13 @@ func UpdateCmd(args ...string) error {
 }
 
 func updateLabel(credential *model.Credential) error {
-	newLabel, err := interaction.ReadStringField(constants.MsgEnterCredentialLabel)
+	newLabel, err := ui.ReadStringField(constants.MsgEnterCredentialLabel)
 	if err != nil {
 		logger.Error(constants.ErrFailedToReadInput)
 		return err
 	}
 
-	existingCredential, err := dao.GetCredentialByLabelAndUser(newLabel, credential.User)
+	existingCredential, err := storage.GetCredentialByLabelAndUser(newLabel, credential.User)
 	if err != nil && err != sql.ErrNoRows {
 		logger.Error(constants.ErrFailedToFetchCredential)
 		return err
@@ -124,7 +124,7 @@ func updateLabel(credential *model.Credential) error {
 		credential.Label,
 		newLabel,
 	)
-	confirm, err := interaction.ConfirmWithText(
+	confirm, err := ui.ConfirmWithText(
 		constants.MsgOperationIsPermanent,
 		confirmationText,
 	)
@@ -138,7 +138,7 @@ func updateLabel(credential *model.Credential) error {
 		return nil
 	}
 
-	err = dao.UpdateCredential(&model.Credential{
+	err = storage.UpdateCredential(&model.Credential{
 		Label: newLabel,
 		Id:    credential.Id,
 	})
@@ -151,13 +151,13 @@ func updateLabel(credential *model.Credential) error {
 }
 
 func updateUser(credential *model.Credential) error {
-	newUser, err := interaction.ReadStringField(constants.MsgEnterCredentialUsername)
+	newUser, err := ui.ReadStringField(constants.MsgEnterCredentialUsername)
 	if err != nil {
 		logger.Error(constants.ErrFailedToReadInput)
 		return err
 	}
 
-	existingCredential, err := dao.GetCredentialByLabelAndUser(credential.Label, newUser)
+	existingCredential, err := storage.GetCredentialByLabelAndUser(credential.Label, newUser)
 	if err != nil && err != sql.ErrNoRows {
 		logger.Error(constants.ErrFailedToFetchCredential)
 		return err
@@ -174,7 +174,7 @@ func updateUser(credential *model.Credential) error {
 		credential.User,
 		newUser,
 	)
-	confirm, err := interaction.ConfirmWithText(
+	confirm, err := ui.ConfirmWithText(
 		constants.MsgOperationIsPermanent,
 		confirmationText,
 	)
@@ -188,7 +188,7 @@ func updateUser(credential *model.Credential) error {
 		return nil
 	}
 
-	err = dao.UpdateCredential(&model.Credential{
+	err = storage.UpdateCredential(&model.Credential{
 		User: newUser,
 		Id:   credential.Id,
 	})
@@ -201,13 +201,13 @@ func updateUser(credential *model.Credential) error {
 }
 
 func updateSecret(credential *model.Credential, vaultData *model.VaultData) error {
-	newSecret, err := interaction.ReadSecretField(constants.MsgEnterCredentialSecret)
+	newSecret, err := ui.ReadSecretField(constants.MsgEnterCredentialSecret)
 	if err != nil {
 		logger.Error(constants.ErrFailedToReadInput)
 		return err
 	}
 
-	confirmSecret, err := interaction.ReadSecretField(constants.MsgConfirmCredentialSecret)
+	confirmSecret, err := ui.ReadSecretField(constants.MsgConfirmCredentialSecret)
 	if err != nil {
 		logger.Error(constants.ErrFailedToReadInput)
 		return err
@@ -219,7 +219,7 @@ func updateSecret(credential *model.Credential, vaultData *model.VaultData) erro
 	}
 
 	logger.Warn(constants.MsgOverwriteCredential)
-	confirm, err := interaction.ConfirmWithText(
+	confirm, err := ui.ConfirmWithText(
 		constants.MsgOperationIsPermanent,
 		fmt.Sprintf("update %s credential secret", credential.Label),
 	)
@@ -252,7 +252,7 @@ func updateSecret(credential *model.Credential, vaultData *model.VaultData) erro
 		Ephemeral: ephemeralPublicKey,
 	}
 
-	err = dao.UpdateCredential(updatedCredential.EncodeToString())
+	err = storage.UpdateCredential(updatedCredential.EncodeToString())
 
 	if err != nil {
 		logger.Error(constants.ErrFailedToSaveCredential)

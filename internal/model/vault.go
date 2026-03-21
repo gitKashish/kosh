@@ -1,6 +1,6 @@
 package model
 
-import "git.plutolab.org/plutolab/kosh/src/internals/encoding"
+import "git.plutolab.org/plutolab/kosh/internal/encoding"
 
 type Vault struct {
 	Salt      string

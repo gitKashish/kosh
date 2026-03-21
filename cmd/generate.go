@@ -11,12 +11,12 @@ import (
 	"strconv"
 	"strings"
 
-	"git.plutolab.org/plutolab/kosh/src/internals/constants"
-	"git.plutolab.org/plutolab/kosh/src/internals/crypto"
-	"git.plutolab.org/plutolab/kosh/src/internals/dao"
-	"git.plutolab.org/plutolab/kosh/src/internals/interaction"
-	"git.plutolab.org/plutolab/kosh/src/internals/logger"
-	"git.plutolab.org/plutolab/kosh/src/internals/model"
+	"git.plutolab.org/plutolab/kosh/internal/constants"
+	"git.plutolab.org/plutolab/kosh/internal/crypto"
+	"git.plutolab.org/plutolab/kosh/internal/logger"
+	"git.plutolab.org/plutolab/kosh/internal/model"
+	"git.plutolab.org/plutolab/kosh/internal/storage"
+	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"golang.org/x/crypto/curve25519"
 )
 
@@ -89,7 +89,7 @@ func generateCmd(args ...string) error {
 
 	if requiredLength > *length {
 		logger.Warn("required length (%d characters) is greater than password length (%d characters)", requiredLength, *length)
-		confirm, err := interaction.ConfirmYesNo(
+		confirm, err := ui.ConfirmYesNo(
 			"generate password with the required length?",
 			false,
 		)
@@ -115,7 +115,7 @@ func generateCmd(args ...string) error {
 
 	// In case `--no-save` copy the password to clipboard, no need to fetch vault data or verify password
 	if *noSave {
-		interaction.CopyToClipboard(generatedSecret)
+		ui.CopyToClipboard(generatedSecret)
 		logger.Info("%s", constants.MsgCopiedCredential)
 		return nil
 	}
@@ -125,14 +125,14 @@ func generateCmd(args ...string) error {
 
 	// fetch vault info
 	// fetch vault info
-	vault, err := dao.GetVaultInfo()
+	vault, err := storage.GetVaultInfo()
 	if err != nil {
 		return err
 	}
 	vaultData := vault.GetRawData()
 
 	// verify master password
-	password, err := interaction.ReadSecretField(constants.MsgEnterMasterPassword)
+	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
 		logger.Error(constants.ErrFailedToReadInput)
 		return err
@@ -152,8 +152,8 @@ func generateCmd(args ...string) error {
 	}
 
 	// check if same credential already exists or not
-	if cred, _ := dao.GetCredentialByLabelAndUser(label, user); cred != nil {
-		overwrite, err := interaction.ConfirmYesNo(
+	if cred, _ := storage.GetCredentialByLabelAndUser(label, user); cred != nil {
+		overwrite, err := ui.ConfirmYesNo(
 			constants.MsgOverwriteCredential,
 			false,
 		)
@@ -169,7 +169,7 @@ func generateCmd(args ...string) error {
 		}
 
 		logger.Warn(constants.MsgOperationIsPermanent)
-		confirm, err := interaction.ConfirmWithText(
+		confirm, err := ui.ConfirmWithText(
 			fmt.Sprintf("%s %s", constants.MsgOverwriteCredential, constants.MsgAreYouSure),
 			fmt.Sprintf("overwrite %s %s", label, user),
 		)
@@ -203,11 +203,11 @@ func generateCmd(args ...string) error {
 	}
 
 	// save credential
-	err = dao.AddCredential(credential.EncodeToString())
+	err = storage.AddCredential(credential.EncodeToString())
 	if err != nil {
 		logger.Error(constants.ErrFailedToSaveCredential)
 	} else {
-		interaction.CopyToClipboard(generatedSecret)
+		ui.CopyToClipboard(generatedSecret)
 		logger.Info(constants.MsgSavedCredential)
 	}
 	return nil

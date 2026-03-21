@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	"git.plutolab.org/plutolab/kosh/src/internals/constants"
-	"git.plutolab.org/plutolab/kosh/src/internals/crypto"
-	"git.plutolab.org/plutolab/kosh/src/internals/dao"
-	"git.plutolab.org/plutolab/kosh/src/internals/interaction"
-	"git.plutolab.org/plutolab/kosh/src/internals/logger"
-	"git.plutolab.org/plutolab/kosh/src/internals/model"
+	"git.plutolab.org/plutolab/kosh/internal/constants"
+	"git.plutolab.org/plutolab/kosh/internal/crypto"
+	"git.plutolab.org/plutolab/kosh/internal/logger"
+	"git.plutolab.org/plutolab/kosh/internal/model"
+	"git.plutolab.org/plutolab/kosh/internal/storage"
+	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"golang.org/x/crypto/curve25519"
 )
 
@@ -34,14 +34,14 @@ func GetCmd(args ...string) error {
 	desiredUser := args[1]
 
 	// fetch vault info
-	vault, err := dao.GetVaultInfo()
+	vault, err := storage.GetVaultInfo()
 	if err != nil {
 		return err
 	}
 	vaultData := vault.GetRawData()
 
 	// fetch credential info
-	credential, err := dao.GetCredentialByLabelAndUser(desiredGroup, desiredUser)
+	credential, err := storage.GetCredentialByLabelAndUser(desiredGroup, desiredUser)
 	if credential == nil && err == sql.ErrNoRows {
 		// credential does not exist
 		logger.Error(constants.ErrCredentialMatchNotFound)
@@ -53,7 +53,7 @@ func GetCmd(args ...string) error {
 	}
 
 	// get password from user
-	password, err := interaction.ReadSecretField(constants.MsgEnterMasterPassword)
+	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
 		logger.Error(constants.ErrFailedToReadInput)
 		return err
@@ -66,9 +66,9 @@ func GetCmd(args ...string) error {
 	// on successful access update the access info for the credential,
 	// increment access count by 2 on get because it has been fetched
 	// with intention meaning that user might be wanting this more
-	dao.UpdateCredentialAccessCount(credential.Id, 2, time.Now())
+	storage.UpdateCredentialAccessCount(credential.Id, 2, time.Now())
 
-	interaction.CopyToClipboard(secret)
+	ui.CopyToClipboard(secret)
 	logger.Info(constants.MsgCopiedCredential)
 	return nil
 }

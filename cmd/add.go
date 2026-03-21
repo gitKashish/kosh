@@ -7,12 +7,12 @@ import (
 
 	"golang.org/x/crypto/curve25519"
 
-	"git.plutolab.org/plutolab/kosh/src/internals/constants"
-	"git.plutolab.org/plutolab/kosh/src/internals/crypto"
-	"git.plutolab.org/plutolab/kosh/src/internals/dao"
-	"git.plutolab.org/plutolab/kosh/src/internals/interaction"
-	"git.plutolab.org/plutolab/kosh/src/internals/logger"
-	"git.plutolab.org/plutolab/kosh/src/internals/model"
+	"git.plutolab.org/plutolab/kosh/internal/constants"
+	"git.plutolab.org/plutolab/kosh/internal/crypto"
+	"git.plutolab.org/plutolab/kosh/internal/logger"
+	"git.plutolab.org/plutolab/kosh/internal/model"
+	"git.plutolab.org/plutolab/kosh/internal/storage"
+	"git.plutolab.org/plutolab/kosh/internal/ui"
 )
 
 func init() {
@@ -25,7 +25,7 @@ func init() {
 
 func AddCmd(args ...string) error {
 	// load vault info
-	vault, err := dao.GetVaultInfo()
+	vault, err := storage.GetVaultInfo()
 	if err != nil {
 		logger.Error(constants.ErrFailedToFetchVaultInfo)
 		return nil
@@ -33,7 +33,7 @@ func AddCmd(args ...string) error {
 	vaultData := vault.GetRawData()
 
 	// get master password
-	password, err := interaction.ReadSecretField(constants.MsgEnterMasterPassword)
+	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
 		logger.Error(constants.ErrFailedToReadInput)
 		return nil
@@ -48,7 +48,7 @@ func AddCmd(args ...string) error {
 	}
 
 	// get credential details
-	label, err := interaction.ReadStringField(constants.MsgEnterCredentialLabel)
+	label, err := ui.ReadStringField(constants.MsgEnterCredentialLabel)
 	if err != nil {
 		logger.Error(constants.ErrFailedToReadInput)
 		return err
@@ -60,17 +60,17 @@ func AddCmd(args ...string) error {
 		return nil
 	}
 
-	user, err := interaction.ReadStringField(constants.MsgEnterCredentialUsername)
+	user, err := ui.ReadStringField(constants.MsgEnterCredentialUsername)
 	if err != nil {
 		logger.Error(constants.ErrFailedToReadInput)
 		return err
 	}
 
 	// check if a credential already exists for the label and user
-	check, err := dao.GetCredentialByLabelAndUser(label, user)
+	check, err := storage.GetCredentialByLabelAndUser(label, user)
 	if check != nil {
 		logger.Warn(constants.MsgOperationIsPermanent)
-		confirm, err := interaction.ConfirmWithText(
+		confirm, err := ui.ConfirmWithText(
 			fmt.Sprintf("%s %s", constants.MsgOverwriteCredential, constants.MsgAreYouSure),
 			fmt.Sprintf("overwrite %s %s", label, user),
 		)
@@ -87,12 +87,12 @@ func AddCmd(args ...string) error {
 		return err
 	}
 
-	secret, err := interaction.ReadSecretField(constants.MsgEnterCredentialSecret)
+	secret, err := ui.ReadSecretField(constants.MsgEnterCredentialSecret)
 	if err != nil {
 		logger.Error(constants.ErrFailedToReadInput)
 		return err
 	}
-	confirm, err := interaction.ReadSecretField(constants.MsgConfirmCredentialSecret)
+	confirm, err := ui.ReadSecretField(constants.MsgConfirmCredentialSecret)
 	if err != nil {
 		logger.Error(constants.ErrFailedToReadInput)
 		return err
@@ -122,7 +122,7 @@ func AddCmd(args ...string) error {
 	}
 
 	// save credential
-	err = dao.AddCredential(credential.EncodeToString())
+	err = storage.AddCredential(credential.EncodeToString())
 	if err != nil {
 		logger.Error(constants.ErrFailedToSaveCredential)
 	} else {

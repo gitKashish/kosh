@@ -3,9 +3,9 @@ package main
 import (
 	"os"
 
-	"git.plutolab.org/plutolab/kosh/src/cmd"
-	"git.plutolab.org/plutolab/kosh/src/internals/dao"
-	"git.plutolab.org/plutolab/kosh/src/internals/logger"
+	"git.plutolab.org/plutolab/kosh/cmd"
+	"git.plutolab.org/plutolab/kosh/internal/logger"
+	"git.plutolab.org/plutolab/kosh/internal/storage"
 )
 
 const (
@@ -14,12 +14,12 @@ const (
 
 func main() {
 	// initialize connection with the database
-	if err := dao.Initialize(); err != nil {
+	if err := storage.Initialize(); err != nil {
 		logger.Error("error connecting to database")
 		logger.Debug("%s", err.Error())
 		os.Exit(1)
 	}
-	defer dao.Close()
+	defer storage.Close()
 
 	if len(os.Args) < 2 {
 		cmd.HelpCmd()

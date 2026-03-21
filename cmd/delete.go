@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strconv"
 
-	"git.plutolab.org/plutolab/kosh/src/internals/constants"
-	"git.plutolab.org/plutolab/kosh/src/internals/crypto"
-	"git.plutolab.org/plutolab/kosh/src/internals/dao"
-	"git.plutolab.org/plutolab/kosh/src/internals/interaction"
-	"git.plutolab.org/plutolab/kosh/src/internals/logger"
+	"git.plutolab.org/plutolab/kosh/internal/constants"
+	"git.plutolab.org/plutolab/kosh/internal/crypto"
+	"git.plutolab.org/plutolab/kosh/internal/logger"
+	"git.plutolab.org/plutolab/kosh/internal/storage"
+	"git.plutolab.org/plutolab/kosh/internal/ui"
 )
 
 func init() {
@@ -21,7 +21,7 @@ func init() {
 }
 
 func DeleteCmd(args ...string) error {
-	vault, err := dao.GetVaultInfo()
+	vault, err := storage.GetVaultInfo()
 	if err != nil {
 		logger.Error(constants.ErrFailedToFetchVaultInfo)
 		return err
@@ -40,7 +40,7 @@ func DeleteCmd(args ...string) error {
 		return err
 	}
 
-	password, err := interaction.ReadSecretField(constants.MsgEnterMasterPassword)
+	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
 		logger.Error(constants.ErrFailedToReadInput)
 		return err
@@ -54,7 +54,7 @@ func DeleteCmd(args ...string) error {
 	}
 
 	// check credential existence
-	credential, err := dao.GetCredentialById(delete_id)
+	credential, err := storage.GetCredentialById(delete_id)
 	if credential == nil && err == sql.ErrNoRows {
 		// credential does not exist
 		logger.Error(constants.ErrCredentialMatchNotFound)
@@ -67,7 +67,7 @@ func DeleteCmd(args ...string) error {
 
 	// get deletion confirmation
 	logger.Warn(constants.MsgOperationIsPermanent)
-	confirm, err := interaction.ConfirmWithText(
+	confirm, err := ui.ConfirmWithText(
 		fmt.Sprintf("%s %s", constants.MsgDeleteCredential, constants.MsgAreYouSure),
 		fmt.Sprintf("delete %s %s", credential.Label, credential.User),
 	)
@@ -81,7 +81,7 @@ func DeleteCmd(args ...string) error {
 		return nil
 	}
 
-	err = dao.DeleteCredentialById(delete_id)
+	err = storage.DeleteCredentialById(delete_id)
 	if err != nil {
 		logger.Error(constants.ErrFailedToDeleteCredential)
 	} else {

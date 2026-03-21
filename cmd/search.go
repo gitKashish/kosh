@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"git.plutolab.org/plutolab/kosh/src/internals/constants"
-	"git.plutolab.org/plutolab/kosh/src/internals/dao"
-	"git.plutolab.org/plutolab/kosh/src/internals/interaction"
-	"git.plutolab.org/plutolab/kosh/src/internals/logger"
-	"git.plutolab.org/plutolab/kosh/src/internals/search"
+	"git.plutolab.org/plutolab/kosh/internal/constants"
+	"git.plutolab.org/plutolab/kosh/internal/logger"
+	"git.plutolab.org/plutolab/kosh/internal/search"
+	"git.plutolab.org/plutolab/kosh/internal/storage"
+	"git.plutolab.org/plutolab/kosh/internal/ui"
 )
 
 func init() {
@@ -32,7 +32,7 @@ func SearchCmd(args ...string) error {
 		queryUser = args[1]
 	}
 
-	credentials, err := dao.GetAllCredentials()
+	credentials, err := storage.GetAllCredentials()
 	if err != nil {
 		logger.Error(constants.ErrFailedToFetchCredential)
 		return err
@@ -48,13 +48,13 @@ func SearchCmd(args ...string) error {
 	logger.Info("found credential - %s (%s)", result.Credential.Label, result.Credential.User)
 
 	// get password from user
-	password, err := interaction.ReadSecretField(constants.MsgEnterMasterPassword)
+	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
 		logger.Error(constants.ErrFailedToReadInput)
 		return err
 	}
 
-	vault, err := dao.GetVaultInfo()
+	vault, err := storage.GetVaultInfo()
 	if err != nil {
 		logger.Error(constants.ErrFailedToFetchVaultInfo)
 		return err
@@ -67,8 +67,8 @@ func SearchCmd(args ...string) error {
 	}
 
 	// increment access count by 1 on successful search
-	dao.UpdateCredentialAccessCount(result.Credential.Id, 1, time.Now())
-	interaction.CopyToClipboard(secret)
+	storage.UpdateCredentialAccessCount(result.Credential.Id, 1, time.Now())
+	ui.CopyToClipboard(secret)
 	logger.Info(constants.MsgCopiedCredential)
 	return nil
 }

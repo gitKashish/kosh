@@ -3,12 +3,12 @@ package cmd
 import (
 	"fmt"
 
-	"git.plutolab.org/plutolab/kosh/src/internals/constants"
-	"git.plutolab.org/plutolab/kosh/src/internals/crypto"
-	"git.plutolab.org/plutolab/kosh/src/internals/dao"
-	"git.plutolab.org/plutolab/kosh/src/internals/interaction"
-	"git.plutolab.org/plutolab/kosh/src/internals/logger"
-	"git.plutolab.org/plutolab/kosh/src/internals/model"
+	"git.plutolab.org/plutolab/kosh/internal/constants"
+	"git.plutolab.org/plutolab/kosh/internal/crypto"
+	"git.plutolab.org/plutolab/kosh/internal/logger"
+	"git.plutolab.org/plutolab/kosh/internal/model"
+	"git.plutolab.org/plutolab/kosh/internal/storage"
+	"git.plutolab.org/plutolab/kosh/internal/ui"
 )
 
 func init() {
@@ -23,7 +23,7 @@ func init() {
 // master password
 func InitCmd(args ...string) error {
 	// Check if vault is already initialized
-	initialized, err := dao.IsVaultInitialized()
+	initialized, err := storage.IsVaultInitialized()
 	if err != nil {
 		logger.Error(constants.ErrFailedToInitializeVault)
 		return err
@@ -58,7 +58,7 @@ func InitCmd(args ...string) error {
 	}
 
 	// save info to the vault
-	err = dao.InitializeVault(*vault.EncodeToString())
+	err = storage.InitializeVault(*vault.EncodeToString())
 	if err != nil {
 		logger.Error(constants.ErrFailedToInitializeVault)
 	} else {
@@ -71,14 +71,14 @@ func InitCmd(args ...string) error {
 // password confirmation by re-entering the password. It throws an error if both passwords do not match.
 func getPasswordWithConfirmation() (string, error) {
 
-	password, err := interaction.ReadSecretField(constants.MsgEnterMasterPassword)
+	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
 		logger.Error(constants.ErrFailedToReadInput)
 		return "", err
 	}
 
 	// Confirm entered password
-	confirm, err := interaction.ReadSecretField(constants.MsgConfirmMasterPassword)
+	confirm, err := ui.ReadSecretField(constants.MsgConfirmMasterPassword)
 	if err != nil {
 		logger.Error(constants.ErrFailedToReadInput)
 		return "", err

@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"git.plutolab.org/plutolab/kosh/src/internals/constants"
-	"git.plutolab.org/plutolab/kosh/src/internals/dao"
-	"git.plutolab.org/plutolab/kosh/src/internals/logger"
-	"git.plutolab.org/plutolab/kosh/src/internals/model"
+	"git.plutolab.org/plutolab/kosh/internal/constants"
+	"git.plutolab.org/plutolab/kosh/internal/logger"
+	"git.plutolab.org/plutolab/kosh/internal/model"
+	"git.plutolab.org/plutolab/kosh/internal/storage"
 )
 
 func init() {
@@ -46,7 +46,7 @@ func ListCmd(args ...string) error {
 		*userFlag = flagSet.Arg(0)
 	}
 
-	credentials, err := dao.SearchCredentialByLabelOrUser(*labelFlag, *userFlag)
+	credentials, err := storage.SearchCredentialByLabelOrUser(*labelFlag, *userFlag)
 	if err != nil {
 		logger.Error(constants.ErrCredentialMatchNotFound)
 		return err

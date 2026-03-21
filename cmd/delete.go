@@ -21,7 +21,7 @@ var deleteCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		id, err := strconv.Atoi(args[0])
 		if err != nil {
-			logger.Error(constants.ErrIdMustBeInteger)
+			logger.Error("%s", constants.ErrIdMustBeInteger.Error())
 			return err
 		}
 
@@ -36,21 +36,21 @@ func init() {
 func runDelete(id int) error {
 	vault, err := store.GetVaultInfo()
 	if err != nil {
-		logger.Error(constants.ErrFailedToFetchVaultInfo)
+		logger.Error("%s", constants.ErrFailedToFetchVaultInfo.Error())
 		return err
 	}
 	vaultData := vault.GetRawData()
 
 	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
-		logger.Error(constants.ErrFailedToReadInput)
+		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 	// verify master password and get encryption info
 	unlockKey := crypto.GenerateSymmetricKey([]byte(password), vaultData.Salt)
 
 	if _, err := crypto.DecryptSecret(unlockKey, vaultData.Secret, vaultData.Nonce); err != nil {
-		logger.Error(constants.ErrIncorrectMasterPassword)
+		logger.Error("%s", constants.ErrIncorrectMasterPassword.Error())
 		return err
 	}
 
@@ -58,7 +58,7 @@ func runDelete(id int) error {
 	credential, err := store.GetCredentialById(id)
 	if credential == nil && err == sql.ErrNoRows {
 		// credential does not exist
-		logger.Error(constants.ErrCredentialMatchNotFound)
+		logger.Error("%s", constants.ErrCredentialMatchNotFound.Error())
 		return nil
 	}
 
@@ -73,7 +73,7 @@ func runDelete(id int) error {
 		fmt.Sprintf("delete %s %s", credential.Label, credential.User),
 	)
 	if err != nil {
-		logger.Error(constants.ErrFailedToReadInput)
+		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
@@ -84,7 +84,7 @@ func runDelete(id int) error {
 
 	err = store.DeleteCredentialById(id)
 	if err != nil {
-		logger.Error(constants.ErrFailedToDeleteCredential)
+		logger.Error("%s", constants.ErrFailedToDeleteCredential.Error())
 	} else {
 		logger.Info(constants.MsgDeletedCredential)
 	}

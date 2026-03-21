@@ -12,19 +12,22 @@ import (
 )
 
 type Store interface {
-	IsVaultInitialized() (bool, error)
-	InitializeVault(vault model.Vault) error
+	// Vault functions
 	GetVaultInfo() (*model.Vault, error)
+	InitializeVault(vault model.Vault) error
+	IsVaultInitialized() (bool, error)
 
-	GetCredentialById(id int) (*model.Credential, error)
-	GetCredentialByLabelAndUser(label, user string) (*model.Credential, error)
+	// Credential functions
 	AddCredential(credential *model.Credential) error
-	UpdateCredential(credential *model.Credential) error
-	SearchCredentialByLabelOrUser(label, user string) ([]model.CredentialSummary, error)
 	DeleteCredentialById(id int) error
 	GetAllCredentials() ([]model.Credential, error)
+	GetCredentialById(id int) (*model.Credential, error)
+	GetCredentialByLabelAndUser(label, user string) (*model.Credential, error)
+	SearchCredentialByLabelOrUser(label, user string) ([]model.CredentialSummary, error)
+	UpdateCredential(credential *model.Credential) error
 	UpdateCredentialAccessCount(id, delta int, accessTime time.Time) error
 
+	// Data Store functions
 	CloseStore() error
 }
 

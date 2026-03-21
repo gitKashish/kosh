@@ -57,7 +57,7 @@ The generated password is encrypted and copied to the clipboard.`,
 
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 2 && !genNoSave {
-			logger.Error(constants.ErrInvalidArguments)
+			logger.Error("%s", constants.ErrInvalidArguments.Error())
 			return fmt.Errorf("wrong arguments got %d, want 2 (unless --no-save is used)", len(args))
 		}
 
@@ -145,19 +145,19 @@ func runGenerate(args ...string) error {
 	// verify master password
 	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
-		logger.Error(constants.ErrFailedToReadInput)
+		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
 	unlockKey := crypto.GenerateSymmetricKey([]byte(password), vaultData.Salt)
 	if _, err := crypto.DecryptSecret(unlockKey, vaultData.Secret, vaultData.Nonce); err != nil {
-		logger.Error(constants.ErrIncorrectMasterPassword)
+		logger.Error("%s", constants.ErrIncorrectMasterPassword.Error())
 		return err
 	}
 
 	// ensure that label is not a command
 	if reserved := isKnownCommand(label); reserved {
-		logger.Error(constants.ErrLabelCannotBeCommand)
+		logger.Error("%s", constants.ErrLabelCannotBeCommand.Error())
 		logger.Info(constants.MsgListCommandsWithHelp)
 		return nil
 	}
@@ -170,7 +170,7 @@ func runGenerate(args ...string) error {
 		)
 
 		if err != nil {
-			logger.Error(constants.ErrFailedToReadInput)
+			logger.Error("%s", constants.ErrFailedToReadInput.Error())
 			return err
 		}
 
@@ -216,7 +216,7 @@ func runGenerate(args ...string) error {
 	// save credential
 	err = store.AddCredential(credential.EncodeToString())
 	if err != nil {
-		logger.Error(constants.ErrFailedToSaveCredential)
+		logger.Error("%s", constants.ErrFailedToSaveCredential.Error())
 	} else {
 		ui.CopyToClipboard(generatedSecret)
 		logger.Info(constants.MsgSavedCredential)

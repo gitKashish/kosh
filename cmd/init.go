@@ -30,7 +30,7 @@ func runInit() error {
 	// Check if vault is already initialized
 	initialized, err := store.IsVaultInitialized()
 	if err != nil {
-		logger.Error(constants.ErrFailedToInitializeVault)
+		logger.Error("%s", constants.ErrFailedToInitializeVault.Error())
 		return err
 	}
 	if initialized {
@@ -65,7 +65,7 @@ func runInit() error {
 	// save info to the vault
 	err = store.InitializeVault(*vault.EncodeToString())
 	if err != nil {
-		logger.Error(constants.ErrFailedToInitializeVault)
+		logger.Error("%s", constants.ErrFailedToInitializeVault.Error())
 	} else {
 		logger.Info(constants.MsgVaultInitializedSuccessfully)
 	}
@@ -78,20 +78,20 @@ func getPasswordWithConfirmation() (string, error) {
 
 	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
-		logger.Error(constants.ErrFailedToReadInput)
+		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return "", err
 	}
 
 	// Confirm entered password
 	confirm, err := ui.ReadSecretField(constants.MsgConfirmMasterPassword)
 	if err != nil {
-		logger.Error(constants.ErrFailedToReadInput)
+		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return "", err
 	}
 
 	// compare both entries
 	if password != confirm {
-		return "", fmt.Errorf(constants.ErrPasswordDoesNotMatch)
+		return "", fmt.Errorf("%s", constants.ErrPasswordDoesNotMatch.Error())
 	}
 
 	return password, nil

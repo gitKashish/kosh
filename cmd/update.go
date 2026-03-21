@@ -23,7 +23,7 @@ var updateCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		id, err := strconv.Atoi(args[0])
 		if err != nil {
-			logger.Error(constants.ErrIdMustBeInteger)
+			logger.Error("%s", constants.ErrIdMustBeInteger.Error())
 			return err
 		}
 		return runUpdate(id)
@@ -37,21 +37,21 @@ func init() {
 func runUpdate(id int) error {
 	vault, err := store.GetVaultInfo()
 	if err != nil {
-		logger.Error(constants.ErrFailedToFetchVaultInfo)
+		logger.Error("%s", constants.ErrFailedToFetchVaultInfo.Error())
 		return err
 	}
 	vaultData := vault.GetRawData()
 
 	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
-		logger.Error(constants.ErrFailedToReadInput)
+		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 	// verify master password and get encryption info
 	unlockKey := crypto.GenerateSymmetricKey([]byte(password), vaultData.Salt)
 
 	if _, err := crypto.DecryptSecret(unlockKey, vaultData.Secret, vaultData.Nonce); err != nil {
-		logger.Error(constants.ErrIncorrectMasterPassword)
+		logger.Error("%s", constants.ErrIncorrectMasterPassword.Error())
 		return err
 	}
 
@@ -59,12 +59,12 @@ func runUpdate(id int) error {
 	credential, err := store.GetCredentialById(id)
 	if err == sql.ErrNoRows {
 		// credential does not exist
-		logger.Error(constants.ErrCredentialNotFound)
+		logger.Error("%s", constants.ErrCredentialNotFound.Error())
 		return nil
 	}
 
 	if err != nil {
-		logger.Error(constants.ErrFailedToFetchCredential)
+		logger.Error("%s", constants.ErrFailedToFetchCredential.Error())
 		return err
 	}
 
@@ -88,7 +88,7 @@ func runUpdate(id int) error {
 		logger.Info(constants.MsgOperationAborted)
 		return nil
 	default:
-		logger.Error(constants.ErrInvalidArguments)
+		logger.Error("%s", constants.ErrInvalidArguments.Error())
 		return nil
 	}
 
@@ -102,18 +102,18 @@ func runUpdate(id int) error {
 func updateLabel(credential *model.Credential) error {
 	newLabel, err := ui.ReadStringField(constants.MsgEnterCredentialLabel)
 	if err != nil {
-		logger.Error(constants.ErrFailedToReadInput)
+		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
 	existingCredential, err := store.GetCredentialByLabelAndUser(newLabel, credential.User)
 	if err != nil && err != sql.ErrNoRows {
-		logger.Error(constants.ErrFailedToFetchCredential)
+		logger.Error("%s", constants.ErrFailedToFetchCredential.Error())
 		return err
 	}
 
 	if existingCredential != nil {
-		logger.Error(constants.ErrCredentialAlreadyExists)
+		logger.Error("%s", constants.ErrCredentialAlreadyExists.Error())
 		logger.Info(constants.MsgOperationAborted)
 		return nil
 	}
@@ -128,7 +128,7 @@ func updateLabel(credential *model.Credential) error {
 		confirmationText,
 	)
 	if err != nil {
-		logger.Error(constants.ErrFailedToReadInput)
+		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
@@ -152,18 +152,18 @@ func updateLabel(credential *model.Credential) error {
 func updateUser(credential *model.Credential) error {
 	newUser, err := ui.ReadStringField(constants.MsgEnterCredentialUsername)
 	if err != nil {
-		logger.Error(constants.ErrFailedToReadInput)
+		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
 	existingCredential, err := store.GetCredentialByLabelAndUser(credential.Label, newUser)
 	if err != nil && err != sql.ErrNoRows {
-		logger.Error(constants.ErrFailedToFetchCredential)
+		logger.Error("%s", constants.ErrFailedToFetchCredential.Error())
 		return err
 	}
 
 	if existingCredential != nil {
-		logger.Error(constants.ErrCredentialAlreadyExists)
+		logger.Error("%s", constants.ErrCredentialAlreadyExists.Error())
 		logger.Info(constants.MsgOperationAborted)
 		return nil
 	}
@@ -178,7 +178,7 @@ func updateUser(credential *model.Credential) error {
 		confirmationText,
 	)
 	if err != nil {
-		logger.Error(constants.ErrFailedToReadInput)
+		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
@@ -202,18 +202,18 @@ func updateUser(credential *model.Credential) error {
 func updateSecret(credential *model.Credential, vaultData *model.VaultData) error {
 	newSecret, err := ui.ReadSecretField(constants.MsgEnterCredentialSecret)
 	if err != nil {
-		logger.Error(constants.ErrFailedToReadInput)
+		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
 	confirmSecret, err := ui.ReadSecretField(constants.MsgConfirmCredentialSecret)
 	if err != nil {
-		logger.Error(constants.ErrFailedToReadInput)
+		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
 	if newSecret != confirmSecret {
-		logger.Error(constants.ErrSecretDoesNotMatch)
+		logger.Error("%s", constants.ErrSecretDoesNotMatch.Error())
 		return nil
 	}
 
@@ -223,7 +223,7 @@ func updateSecret(credential *model.Credential, vaultData *model.VaultData) erro
 		fmt.Sprintf("update %s credential secret", credential.Label),
 	)
 	if err != nil {
-		logger.Error(constants.ErrFailedToReadInput)
+		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
@@ -254,7 +254,7 @@ func updateSecret(credential *model.Credential, vaultData *model.VaultData) erro
 	err = store.UpdateCredential(updatedCredential.EncodeToString())
 
 	if err != nil {
-		logger.Error(constants.ErrFailedToSaveCredential)
+		logger.Error("%s", constants.ErrFailedToSaveCredential.Error())
 		logger.Debug("%v", err)
 	} else {
 		logger.Info("%s", constants.MsgUpdatedCredential)

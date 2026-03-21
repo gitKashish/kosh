@@ -37,7 +37,7 @@ func runList(label string, user string) error {
 
 	credentials, err := store.SearchCredentialByLabelOrUser(label, user)
 	if err != nil {
-		logger.Error(constants.ErrCredentialMatchNotFound)
+		logger.Error("%s", constants.ErrCredentialMatchNotFound.Error())
 		return err
 	}
 
@@ -62,7 +62,7 @@ func displayCredentials(credentials []model.CredentialSummary, filterLabel, filt
 	logger.Muted("filters: %s\n", strings.Join(filters, " and "))
 
 	if len(credentials) == 0 {
-		logger.Warn(constants.ErrCredentialNotFound)
+		logger.Warn("%s", constants.ErrCredentialNotFound.Error())
 		return
 	}
 

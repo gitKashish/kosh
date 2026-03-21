@@ -41,7 +41,7 @@ func runGet(desiredGroup string, desiredUser string) error {
 	credential, err := store.GetCredentialByLabelAndUser(desiredGroup, desiredUser)
 	if credential == nil && err == sql.ErrNoRows {
 		// credential does not exist
-		logger.Error(constants.ErrCredentialMatchNotFound)
+		logger.Error("%s", constants.ErrCredentialMatchNotFound.Error())
 		return nil
 	}
 
@@ -52,7 +52,7 @@ func runGet(desiredGroup string, desiredUser string) error {
 	// get password from user
 	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
-		logger.Error(constants.ErrFailedToReadInput)
+		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
@@ -75,14 +75,14 @@ func extractSecret(credential *model.CredentialData, vault *model.VaultData, mas
 	unlockKey := crypto.GenerateSymmetricKey(masterPassword, vault.Salt)
 	privateKey, err := crypto.DecryptSecret(unlockKey, vault.Secret, vault.Nonce)
 	if err != nil {
-		logger.Error(constants.ErrIncorrectMasterPassword)
+		logger.Error("%s", constants.ErrIncorrectMasterPassword.Error())
 		return nil, err
 	}
 
 	// decrypt credential using private key
 	sharedSecret, err := curve25519.X25519(privateKey, credential.Ephemeral)
 	if err != nil {
-		logger.Error(constants.ErrFailedToDecryptCredential)
+		logger.Error("%s", constants.ErrFailedToDecryptCredential.Error())
 		return nil, err
 	}
 

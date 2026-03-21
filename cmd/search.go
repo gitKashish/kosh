@@ -34,13 +34,13 @@ func init() {
 func runSearch(queryLabel, queryUser string) error {
 	credentials, err := store.GetAllCredentials()
 	if err != nil {
-		logger.Error(constants.ErrFailedToFetchCredential)
+		logger.Error("%s", constants.ErrFailedToFetchCredential.Error())
 		return err
 	}
 
 	result := search.BestMatch(queryLabel, queryUser, credentials, time.Now())
 	if result == nil {
-		logger.Warn(constants.ErrCredentialMatchNotFound)
+		logger.Warn("%s", constants.ErrCredentialMatchNotFound.Error())
 		logger.Info(constants.MsgListCredentialWithList)
 		return nil
 	}
@@ -50,13 +50,13 @@ func runSearch(queryLabel, queryUser string) error {
 	// get password from user
 	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
-		logger.Error(constants.ErrFailedToReadInput)
+		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
 	vault, err := store.GetVaultInfo()
 	if err != nil {
-		logger.Error(constants.ErrFailedToFetchVaultInfo)
+		logger.Error("%s", constants.ErrFailedToFetchVaultInfo.Error())
 		return err
 	}
 	vaultData := vault.GetRawData()

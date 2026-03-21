@@ -32,7 +32,7 @@ func runAdd() error {
 	// load vault info
 	vault, err := store.GetVaultInfo()
 	if err != nil {
-		logger.Error(constants.ErrFailedToFetchVaultInfo)
+		logger.Error("%s", constants.ErrFailedToFetchVaultInfo.Error())
 		return nil
 	}
 	vaultData := vault.GetRawData()
@@ -40,7 +40,7 @@ func runAdd() error {
 	// get master password
 	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
-		logger.Error(constants.ErrFailedToReadInput)
+		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return nil
 	}
 
@@ -48,26 +48,26 @@ func runAdd() error {
 	unlockKey := crypto.GenerateSymmetricKey([]byte(password), vaultData.Salt)
 
 	if _, err := crypto.DecryptSecret(unlockKey, vaultData.Secret, vaultData.Nonce); err != nil {
-		logger.Error(constants.ErrIncorrectMasterPassword)
+		logger.Error("%s", constants.ErrIncorrectMasterPassword.Error())
 		return err
 	}
 
 	// get credential details
 	label, err := ui.ReadStringField(constants.MsgEnterCredentialLabel)
 	if err != nil {
-		logger.Error(constants.ErrFailedToReadInput)
+		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 	// check if provided label is same as a registered command
 	if reserved := isKnownCommand(label); reserved {
-		logger.Error(constants.ErrLabelCannotBeCommand)
+		logger.Error("%s", constants.ErrLabelCannotBeCommand.Error())
 		logger.Info(constants.MsgListCommandsWithHelp)
 		return nil
 	}
 
 	user, err := ui.ReadStringField(constants.MsgEnterCredentialUsername)
 	if err != nil {
-		logger.Error(constants.ErrFailedToReadInput)
+		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
@@ -81,7 +81,7 @@ func runAdd() error {
 		)
 
 		if err != nil {
-			logger.Error(constants.ErrFailedToReadInput)
+			logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		}
 
 		if !confirm {
@@ -94,17 +94,17 @@ func runAdd() error {
 
 	secret, err := ui.ReadSecretField(constants.MsgEnterCredentialSecret)
 	if err != nil {
-		logger.Error(constants.ErrFailedToReadInput)
+		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 	confirm, err := ui.ReadSecretField(constants.MsgConfirmCredentialSecret)
 	if err != nil {
-		logger.Error(constants.ErrFailedToReadInput)
+		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
 	if secret != confirm {
-		logger.Error(constants.ErrSecretDoesNotMatch)
+		logger.Error("%s", constants.ErrSecretDoesNotMatch.Error())
 		return nil
 	}
 
@@ -129,7 +129,7 @@ func runAdd() error {
 	// save credential
 	err = store.AddCredential(credential.EncodeToString())
 	if err != nil {
-		logger.Error(constants.ErrFailedToSaveCredential)
+		logger.Error("%s", constants.ErrFailedToSaveCredential.Error())
 	} else {
 		logger.Info(constants.MsgSavedCredential)
 	}

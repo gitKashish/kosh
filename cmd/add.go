@@ -1,17 +1,13 @@
 package cmd
 
 import (
-	"crypto/sha256"
 	"database/sql"
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/curve25519"
 
 	"git.plutolab.org/plutolab/kosh/internal/constants"
-	"git.plutolab.org/plutolab/kosh/internal/crypto"
 	"git.plutolab.org/plutolab/kosh/internal/logger"
-	"git.plutolab.org/plutolab/kosh/internal/model"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
 )
 
@@ -29,14 +25,6 @@ func init() {
 }
 
 func runAdd() error {
-	// load vault info
-	vault, err := store.GetVaultInfo()
-	if err != nil {
-		logger.Error("%s", constants.ErrFailedToFetchVaultInfo.Error())
-		return nil
-	}
-	vaultData := vault.GetRawData()
-
 	// get master password
 	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
@@ -44,20 +32,20 @@ func runAdd() error {
 		return nil
 	}
 
-	// verify master password and get encryption info
-	unlockKey := crypto.GenerateSymmetricKey([]byte(password), vaultData.Salt)
-
-	if _, err := crypto.DecryptSecret(unlockKey, vaultData.Secret, vaultData.Nonce); err != nil {
-		logger.Error("%s", constants.ErrIncorrectMasterPassword.Error())
+	// verify master password
+	err = vault.VerifyMasterPassword(password)
+	if err != nil {
+		logger.Debug("wrong master password provided")
 		return err
 	}
 
-	// get credential details
+	// get credential label
 	label, err := ui.ReadStringField(constants.MsgEnterCredentialLabel)
 	if err != nil {
 		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
+
 	// check if provided label is same as a registered command
 	if reserved := isKnownCommand(label); reserved {
 		logger.Error("%s", constants.ErrLabelCannotBeCommand.Error())
@@ -65,6 +53,7 @@ func runAdd() error {
 		return nil
 	}
 
+	// get credential user
 	user, err := ui.ReadStringField(constants.MsgEnterCredentialUsername)
 	if err != nil {
 		logger.Error("%s", constants.ErrFailedToReadInput.Error())
@@ -92,6 +81,7 @@ func runAdd() error {
 		return err
 	}
 
+	// get new secret and confirm it
 	secret, err := ui.ReadSecretField(constants.MsgEnterCredentialSecret)
 	if err != nil {
 		logger.Error("%s", constants.ErrFailedToReadInput.Error())
@@ -102,36 +92,16 @@ func runAdd() error {
 		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
-
 	if secret != confirm {
 		logger.Error("%s", constants.ErrSecretDoesNotMatch.Error())
 		return nil
 	}
 
-	ephemeralPrivateKey, ephemeralPublicKey := crypto.GenerateAsymmetricKeyPair()
-
-	// generate symmetric shared secret
-	encryptionKey, _ := curve25519.X25519(ephemeralPrivateKey, vaultData.PublicKey)
-
-	// hash to get 32 bit consistent key for encryption
-	key := sha256.Sum256(encryptionKey)
-
-	cipher, nonce := crypto.EncryptSecret(key[:], []byte(secret))
-
-	credential := model.CredentialData{
-		Label:     label,
-		User:      user,
-		Nonce:     nonce,
-		Secret:    cipher,
-		Ephemeral: ephemeralPublicKey,
+	// save credential to vault
+	if err := vault.AddCredential(label, user, secret); err != nil {
+		logger.Error("%s", err.Error())
+		return err
 	}
-
-	// save credential
-	err = store.AddCredential(credential.EncodeToString())
-	if err != nil {
-		logger.Error("%s", constants.ErrFailedToSaveCredential.Error())
-	} else {
-		logger.Info(constants.MsgSavedCredential)
-	}
-	return err
+	logger.Info(constants.MsgSavedCredential)
+	return nil
 }

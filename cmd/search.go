@@ -32,12 +32,14 @@ func init() {
 }
 
 func runSearch(queryLabel, queryUser string) error {
+	// fetch all credentials
 	credentials, err := store.GetAllCredentials()
 	if err != nil {
 		logger.Error("%s", constants.ErrFailedToFetchCredential.Error())
 		return err
 	}
 
+	// find best match
 	result := search.BestMatch(queryLabel, queryUser, credentials, time.Now())
 	if result == nil {
 		logger.Warn("%s", constants.ErrCredentialMatchNotFound.Error())
@@ -54,21 +56,16 @@ func runSearch(queryLabel, queryUser string) error {
 		return err
 	}
 
-	vault, err := store.GetVaultInfo()
+	// decrypt secret using master password
+	secret, err := vault.DecryptCredential(&result.Credential, password)
 	if err != nil {
-		logger.Error("%s", constants.ErrFailedToFetchVaultInfo.Error())
-		return err
-	}
-	vaultData := vault.GetRawData()
-
-	secret, err := extractSecret(result.Credential.GetRawData(), vaultData, []byte(password))
-	if err != nil {
+		logger.Debug("runSearch:failed to decrypt credential")
 		return err
 	}
 
 	// increment access count by 1 on successful search
 	store.UpdateCredentialAccessCount(result.Credential.Id, 1, time.Now())
-	ui.CopyToClipboard(secret)
+	ui.CopyToClipboard([]byte(secret))
 	logger.Info(constants.MsgCopiedCredential)
 	return nil
 }

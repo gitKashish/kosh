@@ -1,18 +1,15 @@
 package cmd
 
 import (
-	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"strconv"
 
 	"git.plutolab.org/plutolab/kosh/internal/constants"
-	"git.plutolab.org/plutolab/kosh/internal/crypto"
 	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"git.plutolab.org/plutolab/kosh/internal/model"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/curve25519"
 )
 
 var updateCmd = &cobra.Command{
@@ -35,22 +32,13 @@ func init() {
 }
 
 func runUpdate(id int) error {
-	vault, err := store.GetVaultInfo()
-	if err != nil {
-		logger.Error("%s", constants.ErrFailedToFetchVaultInfo.Error())
-		return err
-	}
-	vaultData := vault.GetRawData()
-
 	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
 		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
-	// verify master password and get encryption info
-	unlockKey := crypto.GenerateSymmetricKey([]byte(password), vaultData.Salt)
 
-	if _, err := crypto.DecryptSecret(unlockKey, vaultData.Secret, vaultData.Nonce); err != nil {
+	if err := vault.VerifyMasterPassword(password); err != nil {
 		logger.Error("%s", constants.ErrIncorrectMasterPassword.Error())
 		return err
 	}
@@ -68,8 +56,6 @@ func runUpdate(id int) error {
 		return err
 	}
 
-	// TODO: show what credential is the user updating
-
 	updateOptions := []string{"label", "user", "secret", "abort"}
 	option := ui.GetOptionFieldWithRetry(
 		constants.MsgSelectCredentialFieldToUpdate,
@@ -83,7 +69,7 @@ func runUpdate(id int) error {
 	case 1:
 		err = updateUser(credential)
 	case 2:
-		err = updateSecret(credential, vaultData)
+		err = updateSecret(credential)
 	case 3:
 		logger.Info(constants.MsgOperationAborted)
 		return nil
@@ -199,7 +185,7 @@ func updateUser(credential *model.Credential) error {
 	return err
 }
 
-func updateSecret(credential *model.Credential, vaultData *model.VaultData) error {
+func updateSecret(credential *model.Credential) error {
 	newSecret, err := ui.ReadSecretField(constants.MsgEnterCredentialSecret)
 	if err != nil {
 		logger.Error("%s", constants.ErrFailedToReadInput.Error())
@@ -232,27 +218,7 @@ func updateSecret(credential *model.Credential, vaultData *model.VaultData) erro
 		return nil
 	}
 
-	ephemeralPrivateKey, ephemeralPublicKey := crypto.GenerateAsymmetricKeyPair()
-
-	// generate symmetric shared secret
-	encryptionKey, _ := curve25519.X25519(ephemeralPrivateKey, vaultData.PublicKey)
-
-	// hash to get 32 bit consistent key for encryption
-	key := sha256.Sum256(encryptionKey)
-
-	cipher, nonce := crypto.EncryptSecret(key[:], []byte(newSecret))
-
-	updatedCredential := model.CredentialData{
-		Id:        credential.Id,
-		Label:     credential.Label,
-		User:      credential.User,
-		Nonce:     nonce,
-		Secret:    cipher,
-		Ephemeral: ephemeralPublicKey,
-	}
-
-	err = store.UpdateCredential(updatedCredential.EncodeToString())
-
+	err = vault.UpdateCredentialSecret(credential.Id, newSecret)
 	if err != nil {
 		logger.Error("%s", constants.ErrFailedToSaveCredential.Error())
 		logger.Debug("%v", err)

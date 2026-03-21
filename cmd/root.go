@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 
+	"git.plutolab.org/plutolab/kosh/internal/core"
 	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"git.plutolab.org/plutolab/kosh/internal/storage"
 	"github.com/spf13/cobra"
@@ -11,7 +12,10 @@ import (
 
 const DEFAULT_COMMAND = "search"
 
-var store storage.Store
+var (
+	store storage.Store
+	vault *core.VaultService
+)
 
 var rootCmd = &cobra.Command{
 	Use:   "kosh",
@@ -26,6 +30,9 @@ var rootCmd = &cobra.Command{
 			logger.Debug("%s", err.Error())
 			os.Exit(1)
 		}
+
+		// Initialize Services
+		vault = core.NewVaultService(store)
 	},
 
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {

@@ -1,17 +1,13 @@
 package cmd
 
 import (
-	"crypto/sha256"
 	"database/sql"
 	"time"
 
 	"git.plutolab.org/plutolab/kosh/internal/constants"
-	"git.plutolab.org/plutolab/kosh/internal/crypto"
 	"git.plutolab.org/plutolab/kosh/internal/logger"
-	"git.plutolab.org/plutolab/kosh/internal/model"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/curve25519"
 )
 
 var getCmd = &cobra.Command{
@@ -29,14 +25,6 @@ func init() {
 }
 
 func runGet(desiredGroup string, desiredUser string) error {
-
-	// fetch vault info
-	vault, err := store.GetVaultInfo()
-	if err != nil {
-		return err
-	}
-	vaultData := vault.GetRawData()
-
 	// fetch credential info
 	credential, err := store.GetCredentialByLabelAndUser(desiredGroup, desiredUser)
 	if credential == nil && err == sql.ErrNoRows {
@@ -56,7 +44,7 @@ func runGet(desiredGroup string, desiredUser string) error {
 		return err
 	}
 
-	secret, err := extractSecret(credential.GetRawData(), vaultData, []byte(password))
+	secret, err := vault.DecryptCredential(credential, password)
 	if err != nil {
 		return err
 	}
@@ -65,28 +53,7 @@ func runGet(desiredGroup string, desiredUser string) error {
 	// with intention meaning that user might be wanting this more
 	store.UpdateCredentialAccessCount(credential.Id, 2, time.Now())
 
-	ui.CopyToClipboard(secret)
+	ui.CopyToClipboard([]byte(secret))
 	logger.Info(constants.MsgCopiedCredential)
 	return nil
-}
-
-func extractSecret(credential *model.CredentialData, vault *model.VaultData, masterPassword []byte) ([]byte, error) {
-	// decrypt private key using master password
-	unlockKey := crypto.GenerateSymmetricKey(masterPassword, vault.Salt)
-	privateKey, err := crypto.DecryptSecret(unlockKey, vault.Secret, vault.Nonce)
-	if err != nil {
-		logger.Error("%s", constants.ErrIncorrectMasterPassword.Error())
-		return nil, err
-	}
-
-	// decrypt credential using private key
-	sharedSecret, err := curve25519.X25519(privateKey, credential.Ephemeral)
-	if err != nil {
-		logger.Error("%s", constants.ErrFailedToDecryptCredential.Error())
-		return nil, err
-	}
-
-	key := sha256.Sum256(sharedSecret)
-
-	return crypto.DecryptSecret(key[:], credential.Secret, credential.Nonce)
 }

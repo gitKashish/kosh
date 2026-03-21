@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"git.plutolab.org/plutolab/kosh/internal/constants"
-	"git.plutolab.org/plutolab/kosh/internal/crypto"
 	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"github.com/spf13/cobra"
@@ -34,23 +33,14 @@ func init() {
 }
 
 func runDelete(id int) error {
-	vault, err := store.GetVaultInfo()
-	if err != nil {
-		logger.Error("%s", constants.ErrFailedToFetchVaultInfo.Error())
-		return err
-	}
-	vaultData := vault.GetRawData()
-
 	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
 		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 	// verify master password and get encryption info
-	unlockKey := crypto.GenerateSymmetricKey([]byte(password), vaultData.Salt)
-
-	if _, err := crypto.DecryptSecret(unlockKey, vaultData.Secret, vaultData.Nonce); err != nil {
-		logger.Error("%s", constants.ErrIncorrectMasterPassword.Error())
+	if err := vault.VerifyMasterPassword(password); err != nil {
+		logger.Error("%s", err)
 		return err
 	}
 
@@ -61,7 +51,6 @@ func runDelete(id int) error {
 		logger.Error("%s", constants.ErrCredentialMatchNotFound.Error())
 		return nil
 	}
-
 	if err != nil {
 		return err
 	}

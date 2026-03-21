@@ -8,7 +8,6 @@ import (
 	"git.plutolab.org/plutolab/kosh/internal/constants"
 	"git.plutolab.org/plutolab/kosh/internal/crypto"
 	"git.plutolab.org/plutolab/kosh/internal/logger"
-	"git.plutolab.org/plutolab/kosh/internal/storage"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -35,7 +34,7 @@ func init() {
 }
 
 func runDelete(id int) error {
-	vault, err := storage.GetVaultInfo()
+	vault, err := store.GetVaultInfo()
 	if err != nil {
 		logger.Error(constants.ErrFailedToFetchVaultInfo)
 		return err
@@ -56,7 +55,7 @@ func runDelete(id int) error {
 	}
 
 	// check credential existence
-	credential, err := storage.GetCredentialById(id)
+	credential, err := store.GetCredentialById(id)
 	if credential == nil && err == sql.ErrNoRows {
 		// credential does not exist
 		logger.Error(constants.ErrCredentialMatchNotFound)
@@ -83,7 +82,7 @@ func runDelete(id int) error {
 		return nil
 	}
 
-	err = storage.DeleteCredentialById(id)
+	err = store.DeleteCredentialById(id)
 	if err != nil {
 		logger.Error(constants.ErrFailedToDeleteCredential)
 	} else {

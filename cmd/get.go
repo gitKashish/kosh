@@ -9,7 +9,6 @@ import (
 	"git.plutolab.org/plutolab/kosh/internal/crypto"
 	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"git.plutolab.org/plutolab/kosh/internal/model"
-	"git.plutolab.org/plutolab/kosh/internal/storage"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/curve25519"
@@ -32,14 +31,14 @@ func init() {
 func runGet(desiredGroup string, desiredUser string) error {
 
 	// fetch vault info
-	vault, err := storage.GetVaultInfo()
+	vault, err := store.GetVaultInfo()
 	if err != nil {
 		return err
 	}
 	vaultData := vault.GetRawData()
 
 	// fetch credential info
-	credential, err := storage.GetCredentialByLabelAndUser(desiredGroup, desiredUser)
+	credential, err := store.GetCredentialByLabelAndUser(desiredGroup, desiredUser)
 	if credential == nil && err == sql.ErrNoRows {
 		// credential does not exist
 		logger.Error(constants.ErrCredentialMatchNotFound)
@@ -64,7 +63,7 @@ func runGet(desiredGroup string, desiredUser string) error {
 	// on successful access update the access info for the credential,
 	// increment access count by 2 on get because it has been fetched
 	// with intention meaning that user might be wanting this more
-	storage.UpdateCredentialAccessCount(credential.Id, 2, time.Now())
+	store.UpdateCredentialAccessCount(credential.Id, 2, time.Now())
 
 	ui.CopyToClipboard(secret)
 	logger.Info(constants.MsgCopiedCredential)

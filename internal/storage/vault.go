@@ -9,15 +9,15 @@ import (
 )
 
 // IsVaultInitialized checks if vault exists and has a valid record in it
-func IsVaultInitialized() (bool, error) {
-	if db == nil {
+func (v *VaultStore) IsVaultInitialized() (bool, error) {
+	if v.db == nil {
 		return false, fmt.Errorf("database connection not initialized")
 	}
 
 	// check if vault table exists
 	query := `SELECT name FROM sqlite_master WHERE type='table' AND name='vault'`
 	var tableName string
-	err := db.QueryRow(query).Scan(&tableName)
+	err := v.db.QueryRow(query).Scan(&tableName)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}
@@ -30,7 +30,7 @@ func IsVaultInitialized() (bool, error) {
 	// check if vault has a valid entry
 	var count int
 	query = `SELECT COUNT(*) FROM vault`
-	err = db.QueryRow(query).Scan(&count)
+	err = v.db.QueryRow(query).Scan(&count)
 	if err != nil {
 		logger.Error("failed to count the number of records in vault table")
 		return false, err
@@ -40,9 +40,9 @@ func IsVaultInitialized() (bool, error) {
 }
 
 // InitializeVault adds a valid record to the vault config
-func InitializeVault(vault model.Vault) error {
+func (v *VaultStore) InitializeVault(vault model.Vault) error {
 	// Start transaction
-	transaction, err := db.Begin()
+	transaction, err := v.db.Begin()
 	if err != nil {
 		logger.Error("failed to start transaction")
 		return err
@@ -144,8 +144,8 @@ func InitializeVault(vault model.Vault) error {
 	return nil
 }
 
-func GetVaultInfo() (*model.Vault, error) {
-	initialized, err := IsVaultInitialized()
+func (v *VaultStore) GetVaultInfo() (*model.Vault, error) {
+	initialized, err := v.IsVaultInitialized()
 	if err != nil {
 		logger.Error("error checking vault initialized status")
 		return nil, err
@@ -159,7 +159,7 @@ func GetVaultInfo() (*model.Vault, error) {
 	// get vault info from database
 	var vault model.Vault
 
-	err = db.QueryRow(`
+	err = v.db.QueryRow(`
 		SELECT public_key, secret, nonce, salt FROM vault
 	`).Scan(&vault.PublicKey, &vault.Secret, &vault.Nonce, &vault.Salt)
 

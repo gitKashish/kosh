@@ -8,7 +8,6 @@ import (
 	"git.plutolab.org/plutolab/kosh/internal/constants"
 	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"git.plutolab.org/plutolab/kosh/internal/model"
-	"git.plutolab.org/plutolab/kosh/internal/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +35,7 @@ func init() {
 
 func runList(label string, user string) error {
 
-	credentials, err := storage.SearchCredentialByLabelOrUser(label, user)
+	credentials, err := store.SearchCredentialByLabelOrUser(label, user)
 	if err != nil {
 		logger.Error(constants.ErrCredentialMatchNotFound)
 		return err

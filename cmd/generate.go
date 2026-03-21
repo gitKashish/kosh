@@ -13,7 +13,6 @@ import (
 	"git.plutolab.org/plutolab/kosh/internal/crypto"
 	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"git.plutolab.org/plutolab/kosh/internal/model"
-	"git.plutolab.org/plutolab/kosh/internal/storage"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/curve25519"
@@ -137,7 +136,7 @@ func runGenerate(args ...string) error {
 
 	// fetch vault info
 	// fetch vault info
-	vault, err := storage.GetVaultInfo()
+	vault, err := store.GetVaultInfo()
 	if err != nil {
 		return err
 	}
@@ -164,7 +163,7 @@ func runGenerate(args ...string) error {
 	}
 
 	// check if same credential already exists or not
-	if cred, _ := storage.GetCredentialByLabelAndUser(label, user); cred != nil {
+	if cred, _ := store.GetCredentialByLabelAndUser(label, user); cred != nil {
 		overwrite, err := ui.ConfirmYesNo(
 			constants.MsgOverwriteCredential,
 			false,
@@ -215,7 +214,7 @@ func runGenerate(args ...string) error {
 	}
 
 	// save credential
-	err = storage.AddCredential(credential.EncodeToString())
+	err = store.AddCredential(credential.EncodeToString())
 	if err != nil {
 		logger.Error(constants.ErrFailedToSaveCredential)
 	} else {

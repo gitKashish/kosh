@@ -11,13 +11,17 @@ import (
 
 const DEFAULT_COMMAND = "search"
 
+var store storage.Store
+
 var rootCmd = &cobra.Command{
 	Use:   "kosh",
 	Short: "A secure CLI password manager",
 	Long:  "Kosh is a secure, local vault for storing and generating credentials.",
 
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		if err := storage.Initialize(); err != nil {
+		var err error
+		store, err = storage.InitializeStore()
+		if err != nil {
 			logger.Error("error connecting to databse")
 			logger.Debug("%s", err.Error())
 			os.Exit(1)
@@ -25,12 +29,11 @@ var rootCmd = &cobra.Command{
 	},
 
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
-		storage.Close()
+		store.CloseStore()
 	},
 }
 
 func Execute() {
-
 	// Intercept os.Args to support shorthand `kosh <credential>`
 	if len(os.Args) > 1 {
 		firstArg := os.Args[1]

@@ -4,19 +4,40 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"time"
 
 	"git.plutolab.org/plutolab/kosh/internal/logger"
+	"git.plutolab.org/plutolab/kosh/internal/model"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-var db *sql.DB
+type Store interface {
+	IsVaultInitialized() (bool, error)
+	InitializeVault(vault model.Vault) error
+	GetVaultInfo() (*model.Vault, error)
 
-// Initialize establishes connection with database
-func Initialize() error {
+	GetCredentialById(id int) (*model.Credential, error)
+	GetCredentialByLabelAndUser(label, user string) (*model.Credential, error)
+	AddCredential(credential *model.Credential) error
+	UpdateCredential(credential *model.Credential) error
+	SearchCredentialByLabelOrUser(label, user string) ([]model.CredentialSummary, error)
+	DeleteCredentialById(id int) error
+	GetAllCredentials() ([]model.Credential, error)
+	UpdateCredentialAccessCount(id, delta int, accessTime time.Time) error
+
+	CloseStore() error
+}
+
+type VaultStore struct {
+	db *sql.DB
+}
+
+// InitializeStore establishes connection with database
+func InitializeStore() (Store, error) {
 	userDir, err := os.UserHomeDir()
 	if err != nil {
 		logger.Error("failed to get user home directory")
-		return err
+		return nil, err
 	}
 
 	koshDir := filepath.Join(userDir, ".kosh")
@@ -24,12 +45,12 @@ func Initialize() error {
 	// Create directory if it is not present
 	if err := os.MkdirAll(koshDir, 0700); err != nil {
 		logger.Error("failed to create .kosh directry")
-		return err
+		return nil, err
 	}
 
 	dbFilePath := filepath.Join(koshDir, "kosh.db")
 
-	db, err = sql.Open("sqlite3", dbFilePath)
+	db, err := sql.Open("sqlite3", dbFilePath)
 
 	if err != nil {
 		logger.Error("failed to connect to databse")
@@ -37,19 +58,19 @@ func Initialize() error {
 
 	// Set pragmas for this connection
 	if err := initDatabase(db); err != nil {
-		return err
+		return nil, err
 	}
 
-	return err
+	return &VaultStore{db}, nil
 }
 
-// Close closes existing connection to the database
-func Close() error {
-	if db != nil {
-		if err := db.Close(); err != nil {
+// CloseStore closes existing connection to the database
+func (v *VaultStore) CloseStore() error {
+	if v != nil {
+		if err := v.db.Close(); err != nil {
 			logger.Error("failed to close database connection")
+			return err
 		}
-		return nil
 	}
 	return nil
 }

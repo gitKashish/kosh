@@ -11,14 +11,14 @@ import (
 	"git.plutolab.org/plutolab/kosh/internal/model"
 )
 
-func GetCredentialById(id int) (*model.Credential, error) {
+func (v *VaultStore) GetCredentialById(id int) (*model.Credential, error) {
 	var credential model.Credential
 	query := `
 		SELECT id, label, user, secret, ephemeral, nonce FROM credentials
 		WHERE id = ?
 	`
 
-	err := db.QueryRow(query, id).Scan(&credential.Id, &credential.Label, &credential.User, &credential.Secret, &credential.Ephemeral, &credential.Nonce)
+	err := v.db.QueryRow(query, id).Scan(&credential.Id, &credential.Label, &credential.User, &credential.Secret, &credential.Ephemeral, &credential.Nonce)
 
 	if err == sql.ErrNoRows {
 		logger.Debug("no matching credential found")
@@ -33,14 +33,14 @@ func GetCredentialById(id int) (*model.Credential, error) {
 	return &credential, nil
 }
 
-func GetCredentialByLabelAndUser(label, user string) (*model.Credential, error) {
+func (v *VaultStore) GetCredentialByLabelAndUser(label, user string) (*model.Credential, error) {
 	var credential model.Credential
 	query := `
 		SELECT id, label, user, secret, ephemeral, nonce FROM credentials
 		WHERE label = ? AND user = ?
 	`
 
-	err := db.QueryRow(query, label, user).Scan(&credential.Id, &credential.Label, &credential.User, &credential.Secret, &credential.Ephemeral, &credential.Nonce)
+	err := v.db.QueryRow(query, label, user).Scan(&credential.Id, &credential.Label, &credential.User, &credential.Secret, &credential.Ephemeral, &credential.Nonce)
 
 	if err == sql.ErrNoRows {
 		logger.Debug("no matching credential found")
@@ -55,7 +55,7 @@ func GetCredentialByLabelAndUser(label, user string) (*model.Credential, error) 
 	return &credential, nil
 }
 
-func AddCredential(credential *model.Credential) error {
+func (v *VaultStore) AddCredential(credential *model.Credential) error {
 	query := `
 		INSERT INTO credentials (label, user, secret, ephemeral, nonce)
 		VALUES (?, ?, ?, ?, ?)
@@ -66,7 +66,7 @@ func AddCredential(credential *model.Credential) error {
 			nonce = excluded.nonce
 	`
 
-	stmt, err := db.Prepare(query)
+	stmt, err := v.db.Prepare(query)
 	if err != nil {
 		logger.Error("error preparing statement")
 		return err
@@ -80,7 +80,7 @@ func AddCredential(credential *model.Credential) error {
 	return nil
 }
 
-func UpdateCredential(credential *model.Credential) error {
+func (v *VaultStore) UpdateCredential(credential *model.Credential) error {
 	var (
 		sets   []string
 		values []any
@@ -119,7 +119,7 @@ func UpdateCredential(credential *model.Credential) error {
 
 	values = append(values, credential.Id)
 
-	_, err := db.Exec(query, values...)
+	_, err := v.db.Exec(query, values...)
 	if err != nil {
 		logger.Debug("update credential query: %v", err)
 		return err
@@ -127,7 +127,7 @@ func UpdateCredential(credential *model.Credential) error {
 	return nil
 }
 
-func SearchCredentialByLabelOrUser(label, user string) ([]model.CredentialSummary, error) {
+func (v *VaultStore) SearchCredentialByLabelOrUser(label, user string) ([]model.CredentialSummary, error) {
 	query := `
 		SELECT id, label, user, access_count, created_at, updated_at, accessed_at FROM credentials
 		WHERE TRUE 
@@ -145,7 +145,7 @@ func SearchCredentialByLabelOrUser(label, user string) ([]model.CredentialSummar
 		params = append(params, "%"+user+"%")
 	}
 
-	rows, err := db.Query(query, params...)
+	rows, err := v.db.Query(query, params...)
 	if err != nil {
 		logger.Debug("failed to fetch list of saved credentials")
 		return nil, err
@@ -200,9 +200,9 @@ func SearchCredentialByLabelOrUser(label, user string) ([]model.CredentialSummar
 }
 
 // DeleteCredentialById deletes a stored credential by its ID, returns error ID is invalid
-func DeleteCredentialById(id int) error {
+func (v *VaultStore) DeleteCredentialById(id int) error {
 	query := `DELETE FROM credentials WHERE id = ?`
-	result, err := db.Exec(query, id)
+	result, err := v.db.Exec(query, id)
 	if affectedRows, _ := result.RowsAffected(); affectedRows != 1 {
 		logger.Error("invalid credential id %d", id)
 		return fmt.Errorf("no rows affected")
@@ -214,9 +214,9 @@ func DeleteCredentialById(id int) error {
 	return nil
 }
 
-func GetAllCredentials() ([]model.Credential, error) {
+func (v *VaultStore) GetAllCredentials() ([]model.Credential, error) {
 	query := `SELECT id, label, user, access_count, secret, ephemeral, nonce, accessed_at FROM credentials`
-	rows, err := db.Query(query)
+	rows, err := v.db.Query(query)
 	if err != nil {
 		logger.Debug("error fetching all credentials from database")
 		return nil, err
@@ -258,9 +258,9 @@ func GetAllCredentials() ([]model.Credential, error) {
 	return credentials, nil
 }
 
-func UpdateCredentialAccessCount(id, delta int, accessTime time.Time) error {
+func (v *VaultStore) UpdateCredentialAccessCount(id, delta int, accessTime time.Time) error {
 	query := `UPDATE credentials SET access_count = access_count + ?, accessed_at = ? WHERE id = ?`
-	_, err := db.Exec(query, delta, accessTime, id)
+	_, err := v.db.Exec(query, delta, accessTime, id)
 	if err != nil {
 		logger.Debug("unable to update credential access info : %d at %s", id, accessTime)
 	}
@@ -268,7 +268,7 @@ func UpdateCredentialAccessCount(id, delta int, accessTime time.Time) error {
 	if constants.AccessCountResetThreshold > 0 {
 		accessCount := 0
 		query := `SELECT access_count FROM credentials WHERE id = ?`
-		result := db.QueryRow(query, id)
+		result := v.db.QueryRow(query, id)
 		result.Scan(&accessCount)
 		if err := result.Err(); err != nil {
 			logger.Debug("unable to get existing access count for id %d", id)
@@ -279,7 +279,7 @@ func UpdateCredentialAccessCount(id, delta int, accessTime time.Time) error {
 			logger.Debug("access count baseline reset triggered")
 			// reset access count base-line to prevent a single credentials from dominating
 			// the search un-fairly.
-			err := ResetAccessCountBaseline()
+			err := v.resetAccessCountBaseline()
 			if err != nil {
 				return err
 			}
@@ -291,9 +291,9 @@ func UpdateCredentialAccessCount(id, delta int, accessTime time.Time) error {
 // ResetAccessCountBaseline resets the access count for all credentials by ACCESS_COUNT_RESET_THRESHOLD
 // clamping values between [0, ACCESS_COUNT_RESET_THRESHOLD]. Access count less than ACCESS_COUNT_RESET_THRESHOLD is
 // set to 0.
-func ResetAccessCountBaseline() error {
+func (v *VaultStore) resetAccessCountBaseline() error {
 	query := `UPDATE credentials SET access_count = MAX(access_count - ?, 0)`
-	_, err := db.Exec(query, constants.AccessCountResetThreshold)
+	_, err := v.db.Exec(query, constants.AccessCountResetThreshold)
 	if err != nil {
 		logger.Debug("failed to update access count baseline")
 		return err

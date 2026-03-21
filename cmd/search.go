@@ -6,7 +6,6 @@ import (
 	"git.plutolab.org/plutolab/kosh/internal/constants"
 	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"git.plutolab.org/plutolab/kosh/internal/search"
-	"git.plutolab.org/plutolab/kosh/internal/storage"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -33,7 +32,7 @@ func init() {
 }
 
 func runSearch(queryLabel, queryUser string) error {
-	credentials, err := storage.GetAllCredentials()
+	credentials, err := store.GetAllCredentials()
 	if err != nil {
 		logger.Error(constants.ErrFailedToFetchCredential)
 		return err
@@ -55,7 +54,7 @@ func runSearch(queryLabel, queryUser string) error {
 		return err
 	}
 
-	vault, err := storage.GetVaultInfo()
+	vault, err := store.GetVaultInfo()
 	if err != nil {
 		logger.Error(constants.ErrFailedToFetchVaultInfo)
 		return err
@@ -68,7 +67,7 @@ func runSearch(queryLabel, queryUser string) error {
 	}
 
 	// increment access count by 1 on successful search
-	storage.UpdateCredentialAccessCount(result.Credential.Id, 1, time.Now())
+	store.UpdateCredentialAccessCount(result.Credential.Id, 1, time.Now())
 	ui.CopyToClipboard(secret)
 	logger.Info(constants.MsgCopiedCredential)
 	return nil

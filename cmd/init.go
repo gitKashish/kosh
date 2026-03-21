@@ -7,7 +7,6 @@ import (
 	"git.plutolab.org/plutolab/kosh/internal/crypto"
 	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"git.plutolab.org/plutolab/kosh/internal/model"
-	"git.plutolab.org/plutolab/kosh/internal/storage"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -29,7 +28,7 @@ func init() {
 // master password
 func runInit() error {
 	// Check if vault is already initialized
-	initialized, err := storage.IsVaultInitialized()
+	initialized, err := store.IsVaultInitialized()
 	if err != nil {
 		logger.Error(constants.ErrFailedToInitializeVault)
 		return err
@@ -64,7 +63,7 @@ func runInit() error {
 	}
 
 	// save info to the vault
-	err = storage.InitializeVault(*vault.EncodeToString())
+	err = store.InitializeVault(*vault.EncodeToString())
 	if err != nil {
 		logger.Error(constants.ErrFailedToInitializeVault)
 	} else {

@@ -10,7 +10,6 @@ import (
 	"git.plutolab.org/plutolab/kosh/internal/crypto"
 	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"git.plutolab.org/plutolab/kosh/internal/model"
-	"git.plutolab.org/plutolab/kosh/internal/storage"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/curve25519"
@@ -36,7 +35,7 @@ func init() {
 }
 
 func runUpdate(id int) error {
-	vault, err := storage.GetVaultInfo()
+	vault, err := store.GetVaultInfo()
 	if err != nil {
 		logger.Error(constants.ErrFailedToFetchVaultInfo)
 		return err
@@ -57,7 +56,7 @@ func runUpdate(id int) error {
 	}
 
 	// check credential existence
-	credential, err := storage.GetCredentialById(id)
+	credential, err := store.GetCredentialById(id)
 	if err == sql.ErrNoRows {
 		// credential does not exist
 		logger.Error(constants.ErrCredentialNotFound)
@@ -107,7 +106,7 @@ func updateLabel(credential *model.Credential) error {
 		return err
 	}
 
-	existingCredential, err := storage.GetCredentialByLabelAndUser(newLabel, credential.User)
+	existingCredential, err := store.GetCredentialByLabelAndUser(newLabel, credential.User)
 	if err != nil && err != sql.ErrNoRows {
 		logger.Error(constants.ErrFailedToFetchCredential)
 		return err
@@ -138,7 +137,7 @@ func updateLabel(credential *model.Credential) error {
 		return nil
 	}
 
-	err = storage.UpdateCredential(&model.Credential{
+	err = store.UpdateCredential(&model.Credential{
 		Label: newLabel,
 		Id:    credential.Id,
 	})
@@ -157,7 +156,7 @@ func updateUser(credential *model.Credential) error {
 		return err
 	}
 
-	existingCredential, err := storage.GetCredentialByLabelAndUser(credential.Label, newUser)
+	existingCredential, err := store.GetCredentialByLabelAndUser(credential.Label, newUser)
 	if err != nil && err != sql.ErrNoRows {
 		logger.Error(constants.ErrFailedToFetchCredential)
 		return err
@@ -188,7 +187,7 @@ func updateUser(credential *model.Credential) error {
 		return nil
 	}
 
-	err = storage.UpdateCredential(&model.Credential{
+	err = store.UpdateCredential(&model.Credential{
 		User: newUser,
 		Id:   credential.Id,
 	})
@@ -252,7 +251,7 @@ func updateSecret(credential *model.Credential, vaultData *model.VaultData) erro
 		Ephemeral: ephemeralPublicKey,
 	}
 
-	err = storage.UpdateCredential(updatedCredential.EncodeToString())
+	err = store.UpdateCredential(updatedCredential.EncodeToString())
 
 	if err != nil {
 		logger.Error(constants.ErrFailedToSaveCredential)

@@ -12,7 +12,6 @@ import (
 	"git.plutolab.org/plutolab/kosh/internal/crypto"
 	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"git.plutolab.org/plutolab/kosh/internal/model"
-	"git.plutolab.org/plutolab/kosh/internal/storage"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
 )
 
@@ -31,7 +30,7 @@ func init() {
 
 func runAdd() error {
 	// load vault info
-	vault, err := storage.GetVaultInfo()
+	vault, err := store.GetVaultInfo()
 	if err != nil {
 		logger.Error(constants.ErrFailedToFetchVaultInfo)
 		return nil
@@ -73,7 +72,7 @@ func runAdd() error {
 	}
 
 	// check if a credential already exists for the label and user
-	check, err := storage.GetCredentialByLabelAndUser(label, user)
+	check, err := store.GetCredentialByLabelAndUser(label, user)
 	if check != nil {
 		logger.Warn(constants.MsgOperationIsPermanent)
 		confirm, err := ui.ConfirmWithText(
@@ -128,7 +127,7 @@ func runAdd() error {
 	}
 
 	// save credential
-	err = storage.AddCredential(credential.EncodeToString())
+	err = store.AddCredential(credential.EncodeToString())
 	if err != nil {
 		logger.Error(constants.ErrFailedToSaveCredential)
 	} else {

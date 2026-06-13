@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
 	"fmt"
 	"math/big"
 	"slices"
@@ -10,12 +9,9 @@ import (
 	"strings"
 
 	"git.plutolab.org/plutolab/kosh/internal/constants"
-	"git.plutolab.org/plutolab/kosh/internal/crypto"
 	"git.plutolab.org/plutolab/kosh/internal/logger"
-	"git.plutolab.org/plutolab/kosh/internal/model"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/curve25519"
 )
 
 type CharGroup string
@@ -134,93 +130,22 @@ func runGenerate(args ...string) error {
 	label := args[0]
 	user := args[1]
 
-	// fetch vault info
-	// fetch vault info
-	vault, err := store.GetVaultInfo()
-	if err != nil {
-		return err
-	}
-	vaultData := vault.GetRawData()
-
-	// verify master password
 	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
 		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
-
-	unlockKey := crypto.GenerateSymmetricKey([]byte(password), vaultData.Salt)
-	if _, err := crypto.DecryptSecret(unlockKey, vaultData.Secret, vaultData.Nonce); err != nil {
+	if err := vault.VerifyMasterPassword(password); err != nil {
 		logger.Error("%s", constants.ErrIncorrectMasterPassword.Error())
 		return err
 	}
 
-	// ensure that label is not a command
-	if reserved := isKnownCommand(label); reserved {
-		logger.Error("%s", constants.ErrLabelCannotBeCommand.Error())
-		logger.Info(constants.MsgListCommandsWithHelp)
-		return nil
-	}
-
-	// check if same credential already exists or not
-	if cred, _ := store.GetCredentialByLabelAndUser(label, user); cred != nil {
-		overwrite, err := ui.ConfirmYesNo(
-			constants.MsgOverwriteCredential,
-			false,
-		)
-
-		if err != nil {
-			logger.Error("%s", constants.ErrFailedToReadInput.Error())
-			return err
-		}
-
-		if !overwrite {
-			logger.Info(constants.MsgOperationAborted)
-			return nil
-		}
-
-		logger.Warn(constants.MsgOperationIsPermanent)
-		confirm, err := ui.ConfirmWithText(
-			fmt.Sprintf("%s %s", constants.MsgOverwriteCredential, constants.MsgAreYouSure),
-			fmt.Sprintf("overwrite %s %s", label, user),
-		)
-		if err != nil {
-			logger.Error("error confirming with text prompt")
-			return err
-		}
-
-		if !confirm {
-			logger.Info(constants.MsgOperationAborted)
-			return nil
-		}
-	}
-
-	ephemeralPrivateKey, ephemeralPublicKey := crypto.GenerateAsymmetricKeyPair()
-
-	// generate symmetric shared secret
-	encryptionKey, _ := curve25519.X25519(ephemeralPrivateKey, vaultData.PublicKey)
-
-	// hash to get 32 bit consistent key for encryption
-	key := sha256.Sum256(encryptionKey)
-
-	cipher, nonce := crypto.EncryptSecret(key[:], []byte(generatedSecret))
-
-	credential := model.CredentialData{
-		Label:     label,
-		User:      user,
-		Nonce:     nonce,
-		Secret:    cipher,
-		Ephemeral: ephemeralPublicKey,
-	}
-
-	// save credential
-	err = store.AddCredential(credential.EncodeToString())
+	err = vault.AddCredential(label, user, generatedSecret)
 	if err != nil {
-		logger.Error("%s", constants.ErrFailedToSaveCredential.Error())
-	} else {
-		ui.CopyToClipboard(generatedSecret)
-		logger.Info(constants.MsgSavedCredential)
+		logger.Debug("runGenerate:failed to add generated credential:%s", err.Error())
+		return err
 	}
+
 	return nil
 }
 

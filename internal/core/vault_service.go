@@ -22,14 +22,14 @@ func NewVaultService(store storage.Store) *VaultService {
 
 // verifyMasterPassword checks if the provided master password can unlock the vault.
 // It returns an error if the password is incorrect or if the vault cannot be read.
-func (s *VaultService) VerifyMasterPassword(password string) error {
+func (s *VaultService) VerifyMasterPassword(password []byte) error {
 	vault, err := s.store.GetVaultInfo()
 	if err != nil {
 		return constants.ErrFailedToFetchVaultInfo
 	}
 	vaultData := vault.GetRawData()
 
-	unlockKey := crypto.GenerateSymmetricKey([]byte(password), vaultData.Salt)
+	unlockKey := crypto.GenerateSymmetricKey(password, vaultData.Salt)
 	if _, err := crypto.DecryptSecret(unlockKey, vaultData.Secret, vaultData.Nonce); err != nil {
 		return constants.ErrIncorrectMasterPassword
 	}
@@ -37,7 +37,7 @@ func (s *VaultService) VerifyMasterPassword(password string) error {
 	return nil
 }
 
-func (s *VaultService) AddCredential(label, user, secret string) error {
+func (s *VaultService) AddCredential(label, user string, secret []byte) error {
 	vaultInfo, err := s.store.GetVaultInfo()
 	if err != nil {
 		return err
@@ -52,7 +52,10 @@ func (s *VaultService) AddCredential(label, user, secret string) error {
 	// hash to get 32 bit consistent key for encryption
 	key := sha256.Sum256(encryptionKey)
 
-	cipher, nonce := crypto.EncryptSecret(key[:], []byte(secret))
+	cipher, nonce, err := crypto.EncryptSecret(key[:], secret)
+	if err != nil {
+		return err
+	}
 
 	credential := model.CredentialData{
 		Label:     label,
@@ -71,7 +74,7 @@ func (s *VaultService) AddCredential(label, user, secret string) error {
 	return nil
 }
 
-func (s *VaultService) DecryptCredential(credential *model.Credential, password string) (string, error) {
+func (s *VaultService) DecryptCredential(credential *model.Credential, password []byte) (string, error) {
 	vaultInfo, err := s.store.GetVaultInfo()
 	if err != nil {
 		logger.Debug("decryptCredential:failed to get vault info")
@@ -80,12 +83,13 @@ func (s *VaultService) DecryptCredential(credential *model.Credential, password 
 	vaultData := vaultInfo.GetRawData()
 
 	// Derive unlock key
-	unlockKey := crypto.GenerateSymmetricKey([]byte(password), vaultData.Salt)
+	unlockKey := crypto.GenerateSymmetricKey(password, vaultData.Salt)
 
 	// Decrypt vault private key
 	vaultPrivateKey, err := crypto.DecryptSecret(unlockKey, vaultData.Secret, vaultData.Nonce)
 	if err != nil {
 		logger.Debug("decryptCredential:failed to get private key from vault")
+		return "", constants.ErrFailedToDecryptCredential
 	}
 
 	// Generate shared secret
@@ -104,7 +108,7 @@ func (s *VaultService) DecryptCredential(credential *model.Credential, password 
 }
 
 // UpdateCredentialSecret encrypts a new secret for an existing credential and saves it.
-func (s *VaultService) UpdateCredentialSecret(id int, newSecret string) error {
+func (s *VaultService) UpdateCredentialSecret(id int, newSecret []byte) error {
 	vaultInfo, err := s.store.GetVaultInfo()
 	if err != nil {
 		return constants.ErrFailedToFetchVaultInfo
@@ -119,7 +123,10 @@ func (s *VaultService) UpdateCredentialSecret(id int, newSecret string) error {
 	// hash to get 32 bit consistent key for encryption
 	key := sha256.Sum256(encryptionKey)
 
-	cipher, nonce := crypto.EncryptSecret(key[:], []byte(newSecret))
+	cipher, nonce, err := crypto.EncryptSecret(key[:], newSecret)
+	if err != nil {
+		return err
+	}
 
 	// Create a credential with ONLY the fields that need updating
 	updatedCredential := model.CredentialData{

@@ -32,14 +32,14 @@ type SearchResult struct {
 }
 
 func BestMatch(queryLabel, queryUser string, credentials []model.Credential, now time.Time) *SearchResult {
-	res := Search(queryLabel, queryUser, credentials, MIN_SCORE_THRESHOLD, now)
+	res := search(queryLabel, queryUser, credentials, MIN_SCORE_THRESHOLD, now)
 	if len(res) == 0 {
 		return nil
 	}
 	return &res[0]
 }
 
-func Search(queryLabel, queryUser string, credentials []model.Credential, threshold float64, now time.Time) []SearchResult {
+func search(queryLabel, queryUser string, credentials []model.Credential, threshold float64, now time.Time) []SearchResult {
 	timeSearchStart := time.Now()
 	results := make([]SearchResult, 0, len(credentials))
 
@@ -77,7 +77,6 @@ func Search(queryLabel, queryUser string, credentials []model.Credential, thresh
 		return prev.Score > curr.Score
 	})
 
-	time.Sleep(time.Nanosecond)
 	timeSearchElapsed := time.Since(timeSearchStart)
 	logger.Debug("time for search %s", timeSearchElapsed.String())
 
@@ -126,7 +125,7 @@ func stringScore(query, target string) float64 {
 
 // similarityScore provides a normalized levenshtein distance between source and target strings
 func similarityScore(source, target string) float64 {
-	distance := Levenshtein(source, target)
+	distance := levenshtein(source, target)
 	maxLen := max(len(source), len(target))
 	similarity := 1.0 - (float64(distance) / float64(maxLen))
 	return similarity
@@ -155,7 +154,7 @@ func frequencyScore(count int) float64 {
 
 // helper functions
 
-func Levenshtein(a, b string) int {
+func levenshtein(a, b string) int {
 	la, lb := len(a), len(b)
 	if la == 0 {
 		return lb

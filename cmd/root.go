@@ -26,7 +26,7 @@ var rootCmd = &cobra.Command{
 		var err error
 		store, err = storage.InitializeStore()
 		if err != nil {
-			logger.Error("error connecting to databse")
+			logger.Error("error connecting to database")
 			logger.Debug("%s", err.Error())
 			os.Exit(1)
 		}

@@ -71,10 +71,13 @@ func (v *VaultStore) AddCredential(credential *model.Credential) error {
 		logger.Error("error preparing statement")
 		return err
 	}
+	defer stmt.Close()
 
 	_, err = stmt.Exec(credential.Label, credential.User, credential.Secret, credential.Ephemeral, credential.Nonce)
 	if err != nil {
 		logger.Error("error inserting credential")
+		logger.Debug("addCredential:failed to execute statement: %s", err.Error())
+		return err
 	}
 
 	return nil
@@ -109,6 +112,11 @@ func (v *VaultStore) UpdateCredential(credential *model.Credential) error {
 	if credential.Nonce != "" {
 		sets = append(sets, "nonce = ?")
 		values = append(values, credential.Nonce)
+	}
+
+	if len(sets) == 0 {
+		logger.Debug("updateCredential:no fields to update");
+		return nil
 	}
 
 	query := `
@@ -203,13 +211,13 @@ func (v *VaultStore) SearchCredentialByLabelOrUser(label, user string) ([]model.
 func (v *VaultStore) DeleteCredentialById(id int) error {
 	query := `DELETE FROM credentials WHERE id = ?`
 	result, err := v.db.Exec(query, id)
-	if affectedRows, _ := result.RowsAffected(); affectedRows != 1 {
-		logger.Error("invalid credential id %d", id)
-		return fmt.Errorf("no rows affected")
-	}
 	if err != nil {
 		logger.Debug("unable to delete credential")
 		return err
+	}
+	if affectedRows, _ := result.RowsAffected(); affectedRows != 1 {
+		logger.Error("invalid credential id %d", id)
+		return fmt.Errorf("no rows affected")
 	}
 	return nil
 }

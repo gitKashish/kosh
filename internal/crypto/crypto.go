@@ -11,6 +11,7 @@ import (
 )
 
 const (
+	// TODO: store these parameters in the vault
 	keyTime    = 1
 	keyMemory  = 64 * 1024
 	keyThreads = 4
@@ -38,10 +39,14 @@ func GenerateAsymmetricKeyPair() (privateKey, publicKey []byte) {
 	return privateKey, publicKey
 }
 
-func EncryptSecret(key, secret []byte) (cipher, nonce []byte) {
+func EncryptSecret(key, secret []byte) (cipher, nonce []byte, err error) {
 	// create AEAD with the shared secret
-	aead, _ := chacha20poly1305.NewX(key)
-
+	aead, err := chacha20poly1305.NewX(key)
+	if err != nil {
+		logger.Debug("encryptSecret:failed to generate secret AEAD: %s", err.Error())
+		return nil, nil, err
+	}
+	
 	// generate nonce for encrypting the secret
 	nonce = make([]byte, aead.NonceSize())
 	_, _ = rand.Read(nonce)
@@ -49,7 +54,7 @@ func EncryptSecret(key, secret []byte) (cipher, nonce []byte) {
 	// encrypt the secret
 	cipher = aead.Seal(nil, nonce, secret, nil)
 
-	return cipher, nonce
+	return cipher, nonce, nil
 }
 
 func DecryptSecret(key, cipher, nonce []byte) ([]byte, error) {

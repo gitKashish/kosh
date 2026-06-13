@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"crypto/subtle"
 	"database/sql"
 	"fmt"
 
@@ -92,7 +93,7 @@ func runAdd() error {
 		logger.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
-	if secret != confirm {
+	if subtle.ConstantTimeCompare(secret, confirm) == 0 {
 		logger.Error("%s", constants.ErrSecretDoesNotMatch.Error())
 		return nil
 	}

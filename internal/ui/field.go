@@ -11,6 +11,10 @@ import (
 	"golang.org/x/term"
 )
 
+const (
+	INPUT_MAX_RETRY = 5
+)
+
 // ReadStringField prompts the user and reads input from the standard input
 func ReadStringField(prompt string) (string, error) {
 	logger.Prompt("%s", prompt)
@@ -24,7 +28,7 @@ func ReadStringField(prompt string) (string, error) {
 
 // ReadStringFieldWithRetry prompts with automatic retry on error
 func ReadStringFieldWithRetry(prompt string) string {
-	for {
+	for range INPUT_MAX_RETRY {
 		data, err := ReadStringField(prompt)
 		if err != nil {
 			logger.Error("failed to read input: %v", err)
@@ -32,22 +36,23 @@ func ReadStringFieldWithRetry(prompt string) string {
 		}
 		return data
 	}
+	return ""
 }
 
 // ReadSecretField prompts the user and reads input without displaying entered characters
-func ReadSecretField(prompt string) (string, error) {
+func ReadSecretField(prompt string) ([]byte, error) {
 	logger.Prompt("%s", prompt)
 	data, err := term.ReadPassword(int(os.Stdin.Fd()))
 	fmt.Println() // newline after password input
 	if err != nil {
-		return "", fmt.Errorf("failed to read password: %w", err)
+		return nil, fmt.Errorf("failed to read password: %w", err)
 	}
-	return string(data), nil
+	return data, nil
 }
 
 // ReadSecretFieldWithRetry prompts with automatic retry on error
-func ReadSecretFieldWithRetry(prompt string) string {
-	for {
+func ReadSecretFieldWithRetry(prompt string) []byte {
+	for range INPUT_MAX_RETRY {
 		data, err := ReadSecretField(prompt)
 		if err != nil {
 			logger.Error("failed to read password: %v", err)
@@ -55,6 +60,7 @@ func ReadSecretFieldWithRetry(prompt string) string {
 		}
 		return data
 	}
+	return nil
 }
 
 // GetOptionField prompts user with provided options
@@ -111,7 +117,7 @@ func GetOptionField(prompt string, options []string, defaultOption int) (int, er
 
 // GetOptionFieldWithRetry prompts with automatic retry on invalid input
 func GetOptionFieldWithRetry(prompt string, options []string, defaultOption int) int {
-	for {
+	for range INPUT_MAX_RETRY {
 		index, err := GetOptionField(prompt, options, defaultOption)
 		if err != nil {
 			logger.Error("%v", err)
@@ -120,6 +126,7 @@ func GetOptionFieldWithRetry(prompt string, options []string, defaultOption int)
 		}
 		return index
 	}
+	return defaultOption
 }
 
 // ConfirmWithText prompts user to type exact confirmation text
@@ -134,7 +141,7 @@ func ConfirmWithText(prompt, confirmationText string) (bool, error) {
 
 // ConfirmWithTextRetry prompts with automatic retry on error (not wrong text)
 func ConfirmWithTextRetry(prompt, confirmationText string) bool {
-	for {
+	for range INPUT_MAX_RETRY {
 		confirmed, err := ConfirmWithText(prompt, confirmationText)
 		if err != nil {
 			logger.Error("failed to read input: %v", err)
@@ -142,6 +149,7 @@ func ConfirmWithTextRetry(prompt, confirmationText string) bool {
 		}
 		return confirmed
 	}
+	return false
 }
 
 // ConfirmYesNo prompts user for a simple yes/no confirmation
@@ -173,7 +181,7 @@ func ConfirmYesNo(prompt string, defaultYes bool) (bool, error) {
 
 // ConfirmYesNoRetry prompts with automatic retry on error
 func ConfirmYesNoRetry(prompt string, defaultYes bool) bool {
-	for {
+	for range INPUT_MAX_RETRY {
 		confirmed, err := ConfirmYesNo(prompt, defaultYes)
 		if err != nil {
 			logger.Error("failed to read input: %v", err)
@@ -181,4 +189,5 @@ func ConfirmYesNoRetry(prompt string, defaultYes bool) bool {
 		}
 		return confirmed
 	}
+	return false
 }

@@ -8,7 +8,7 @@ import (
 
 	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"git.plutolab.org/plutolab/kosh/internal/model"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 type Store interface {
@@ -47,16 +47,16 @@ func InitializeStore() (Store, error) {
 
 	// Create directory if it is not present
 	if err := os.MkdirAll(koshDir, 0700); err != nil {
-		logger.Error("failed to create .kosh directry")
+		logger.Error("failed to create .kosh directory")
 		return nil, err
 	}
 
 	dbFilePath := filepath.Join(koshDir, "kosh.db")
 
-	db, err := sql.Open("sqlite3", dbFilePath)
+	db, err := sql.Open("sqlite", dbFilePath)
 
 	if err != nil {
-		logger.Error("failed to connect to databse")
+		logger.Error("failed to connect to database")
 	}
 
 	// Set pragmas for this connection

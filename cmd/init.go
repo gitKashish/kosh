@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"crypto/subtle"
 	"fmt"
 
 	"git.plutolab.org/plutolab/kosh/internal/constants"
@@ -53,7 +54,10 @@ func runInit() error {
 	priv, pub := crypto.GenerateAsymmetricKeyPair()
 
 	// Encrypt password
-	cipher, nonce := crypto.EncryptSecret(key, priv)
+	cipher, nonce, err := crypto.EncryptSecret(key, priv)
+	if err != nil {
+		return err
+	}
 
 	vault := &model.VaultData{
 		Salt:      salt,
@@ -74,24 +78,24 @@ func runInit() error {
 
 // getPasswordWithConfirmation gets password value from user from terminal. It gets password using silent text input and asks for
 // password confirmation by re-entering the password. It throws an error if both passwords do not match.
-func getPasswordWithConfirmation() (string, error) {
+func getPasswordWithConfirmation() ([]byte, error) {
 
 	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
 		logger.Error("%s", constants.ErrFailedToReadInput.Error())
-		return "", err
+		return nil, err
 	}
 
 	// Confirm entered password
 	confirm, err := ui.ReadSecretField(constants.MsgConfirmMasterPassword)
 	if err != nil {
 		logger.Error("%s", constants.ErrFailedToReadInput.Error())
-		return "", err
+		return nil, err
 	}
 
 	// compare both entries
-	if password != confirm {
-		return "", fmt.Errorf("%s", constants.ErrPasswordDoesNotMatch.Error())
+	if subtle.ConstantTimeCompare(password, confirm) == 0 {
+		return nil, fmt.Errorf("%s", constants.ErrPasswordDoesNotMatch.Error())
 	}
 
 	return password, nil

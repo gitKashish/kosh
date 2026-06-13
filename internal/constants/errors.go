@@ -5,7 +5,7 @@ import "errors"
 var (
 	ErrInvalidArguments        = errors.New("invalid arguments")
 	ErrIdMustBeInteger         = errors.New("id must be an integer")
-	ErrVaultNotInitialized     = errors.New("vault not intialized")
+	ErrVaultNotInitialized     = errors.New("vault not initialized")
 	ErrFailedToInitializeVault = errors.New("unable to initialize vault")
 	ErrFailedToFetchVaultInfo  = errors.New("unable to fetch vault info")
 

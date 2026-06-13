@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"crypto/subtle"
 	"database/sql"
 	"fmt"
 	"strconv"
@@ -198,7 +199,7 @@ func updateSecret(credential *model.Credential) error {
 		return err
 	}
 
-	if newSecret != confirmSecret {
+	if subtle.ConstantTimeCompare(newSecret, confirmSecret) == 0 {
 		logger.Error("%s", constants.ErrSecretDoesNotMatch.Error())
 		return nil
 	}

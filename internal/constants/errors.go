@@ -19,6 +19,7 @@ var (
 	ErrFailedToDeleteCredential  = errors.New("unable to delete credential")
 	ErrFailedToDecryptCredential = errors.New("unable to decrypt credential")
 	ErrFailedToReadInput         = errors.New("unable to read input")
+	ErrSearchCancelled           = errors.New("search cancelled")
 
 	ErrCredentialMatchNotFound = errors.New("credential match not found")
 	ErrCredentialNotFound      = errors.New("no credential found")

@@ -4,6 +4,7 @@ const (
 	MsgEnterMasterPassword   = "enter master password: "
 	MsgConfirmMasterPassword = "confirm master password: "
 
+	MsgCredentialSearch 	   = "search credential: "
 	MsgEnterCredentialLabel    = "enter credential label: "
 	MsgEnterCredentialUsername = "enter credential username: "
 	MsgEnterCredentialSecret   = "enter credential secret: "

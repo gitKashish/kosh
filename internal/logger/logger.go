@@ -2,6 +2,7 @@ package logger
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"runtime"
 )
@@ -23,22 +24,42 @@ const (
 	ColorGray   = "\033[90m"
 )
 
+// Output writers. Swap these (via Pause) to silence or redirect logging,
+// e.g. while a raw-mode TUI owns the terminal.
+var (
+	out io.Writer = os.Stdout
+	errOut io.Writer = os.Stderr
+)
+
+// Pause silences all logger output and returns a function that restores the
+// previous writers. Use it around interactive/raw-mode sessions that own the
+// terminal cursor, so stray log lines don't corrupt the display:
+//
+//	defer logger.Pause()()
+func Pause() func() {
+	prevOut, prevErr := out, errOut
+	out, errOut = io.Discard, io.Discard
+	return func() {
+		out, errOut = prevOut, prevErr
+	}
+}
+
 // Error prints error messages
 func Error(format string, args ...any) {
 	message := fmt.Sprintf(format, args...)
-	fmt.Fprintf(os.Stderr, "%s[✗]%s %s\n", ColorRed, ColorReset, message)
+	fmt.Fprintf(errOut, "%s[✗]%s %s\n", ColorRed, ColorReset, message)
 }
 
 // Info prints informational messages
 func Info(format string, args ...any) {
 	message := fmt.Sprintf(format, args...)
-	fmt.Printf("%s[✓]%s %s\n", ColorGreen, ColorReset, message)
+	fmt.Fprintf(out, "%s[✓]%s %s\n", ColorGreen, ColorReset, message)
 }
 
 // Warn prints warning messages
 func Warn(format string, args ...any) {
 	message := fmt.Sprintf(format, args...)
-	fmt.Printf("%s[!]%s %s\n", ColorYellow, ColorReset, message)
+	fmt.Fprintf(out, "%s[!]%s %s\n", ColorYellow, ColorReset, message)
 }
 
 // Debug prints debug messages
@@ -46,7 +67,6 @@ func Debug(format string, args ...any) {
 	if BuildMode == BUILD_MODE_PRODUCTION {
 		return
 	}
-
 	_, file, line, ok := runtime.Caller(1)
 	caller := ""
 	if ok {
@@ -58,9 +78,8 @@ func Debug(format string, args ...any) {
 		}
 		caller = fmt.Sprintf("%s:%d", file, line)
 	}
-
 	message := fmt.Sprintf(format, args...)
-	fmt.Printf("%s[→]%s %s %s[%s]%s\n",
+	fmt.Fprintf(out, "%s[→]%s %s %s[%s]%s\n",
 		ColorBlue, ColorReset,
 		message,
 		ColorGray, caller, ColorReset)
@@ -69,11 +88,11 @@ func Debug(format string, args ...any) {
 // Prompt prints a prompt for user input
 func Prompt(format string, args ...any) {
 	message := fmt.Sprintf(format, args...)
-	fmt.Printf("%s[?]%s %s", ColorCyan, ColorReset, message)
+	fmt.Fprintf(out, "%s[?]%s %s", ColorCyan, ColorReset, message)
 }
 
 // Muted prints muted text messages
 func Muted(format string, args ...any) {
 	message := fmt.Sprintf(format, args...)
-	fmt.Printf("%s[•] %s%s\n", ColorGray, message, ColorReset)
+	fmt.Fprintf(out, "%s[•] %s%s\n", ColorGray, message, ColorReset)
 }

@@ -1,6 +1,7 @@
 package search
 
 import (
+	"fmt"
 	"math"
 	"sort"
 	"strings"
@@ -31,12 +32,16 @@ type SearchResult struct {
 	Score      float64
 }
 
-func BestMatch(queryLabel, queryUser string, credentials []model.Credential, now time.Time) *SearchResult {
+func (s SearchResult) Display() string {
+	return fmt.Sprintf("%s (%s) [%.3f]", s.Credential.Label, s.Credential.User, s.Score)
+}
+
+func BestMatches(queryLabel, queryUser string, credentials []model.Credential, now time.Time) []SearchResult {
 	res := search(queryLabel, queryUser, credentials, MIN_SCORE_THRESHOLD, now)
 	if len(res) == 0 {
 		return nil
 	}
-	return &res[0]
+	return res
 }
 
 func search(queryLabel, queryUser string, credentials []model.Credential, threshold float64, now time.Time) []SearchResult {

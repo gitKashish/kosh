@@ -42,7 +42,9 @@ var rootCmd = &cobra.Command{
 
 func Execute() {
 	// Intercept os.Args to support shorthand `kosh <credential>`
-	if len(os.Args) > 1 {
+	if len(os.Args) == 1 {
+		os.Args = append(os.Args, DEFAULT_COMMAND)
+	} else {
 		firstArg := os.Args[1]
 
 		// If first arg is not a flag (like --help)

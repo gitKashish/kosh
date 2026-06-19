@@ -120,9 +120,9 @@ func stringScore(query, target string) float64 {
 	simScore := similarityScore(query, target)
 
 	if strings.HasPrefix(target, query) {
-		simScore += PREFIX_BOOST
+		simScore += (MAX_STRING_SCORE - simScore) * PREFIX_BOOST
 	} else if strings.Contains(target, query) {
-		simScore += SUBSTRING_BOOST
+		simScore += (MAX_STRING_SCORE - simScore) * SUBSTRING_BOOST
 	}
 
 	return simScore

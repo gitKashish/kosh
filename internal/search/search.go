@@ -105,7 +105,7 @@ func ScoreQuery(queryLabel, queryUser, label, user string, count int, last time.
 		userScore = stringScore(queryUser, user) * USER_WEIGHT
 	}
 
-	score := labelScore + userScore + recScore + freqScore
+	score := (labelScore + userScore) * (1 + recScore + freqScore)
 	return score
 }
 

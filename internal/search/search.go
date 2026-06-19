@@ -154,7 +154,7 @@ func frequencyScore(count int) float64 {
 	if count <= 0 {
 		return 0
 	}
-	return math.Log(float64(count)+1.0) / 5.0
+	return math.Log(float64(count)+1.0) / 15.0
 }
 
 // helper functions

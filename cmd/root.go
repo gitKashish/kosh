@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"git.plutolab.org/plutolab/kosh/internal/core"
@@ -17,6 +18,17 @@ var (
 	store      storage.Store
 	vault      *core.VaultService
 )
+
+func init() {
+	if AppVersion == "dev" {
+		if info, ok := debug.ReadBuildInfo(); ok {
+			if info.Main.Version != "(devel)" && info.Main.Version != "" {
+				AppVersion = info.Main.Version
+			}
+		}
+	}
+	rootCmd.Version = AppVersion
+}
 
 var rootCmd = &cobra.Command{
 	Use:     "kosh",

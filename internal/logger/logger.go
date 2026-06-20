@@ -27,7 +27,7 @@ const (
 // Output writers. Swap these (via Pause) to silence or redirect logging,
 // e.g. while a raw-mode TUI owns the terminal.
 var (
-	out io.Writer = os.Stdout
+	out    io.Writer = os.Stdout
 	errOut io.Writer = os.Stderr
 )
 

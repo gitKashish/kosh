@@ -13,15 +13,16 @@ import (
 const DEFAULT_COMMAND = "search"
 
 var (
-	store storage.Store
-	vault *core.VaultService
+	AppVersion = "dev"
+	store      storage.Store
+	vault      *core.VaultService
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "kosh",
-	Short: "A secure CLI password manager",
-	Long:  "Kosh is a secure, local vault for storing and generating credentials.",
-
+	Use:     "kosh",
+	Short:   "A secure CLI password manager",
+	Long:    "Kosh is a secure, local vault for storing and generating credentials.",
+	Version: AppVersion,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		var err error
 		store, err = storage.InitializeStore()

@@ -20,6 +20,11 @@ builds:
       - windows
       - darwin
 
+    ldflags:
+      - -s
+      - -w
+      - -X=git.plutolab.org/plutolab/kosh/cmd.AppVersion={{.Version}}
+      - -X=git.plutolab.org/plutolab/kosh/internal/logger.BuildMode=production
 archives:
   - formats: [tar.gz]
     # this name template makes the OS and Arch compatible with the results of `uname`.

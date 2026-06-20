@@ -1,134 +1,187 @@
 # Kosh — Secure, Local-First Password Manager
 
-**Developer & Contributor README**
+Kosh is a fast, offline-first CLI password manager written in Go. It stores credentials in an encrypted SQLite vault using **Curve25519**, **XChaCha20-Poly1305**, and **Argon2id** — no cloud, no network, nothing leaves your machine.
 
-Kosh is a fast, secure, offline-first command-line password manager.
-It uses an encrypted SQLite vault and modern cryptographic primitives such as
-**Curve25519**, **ChaCha20-Poly1305**, and **Argon2id**.
-
-This README is intended **for developers and contributors**.
-For end-user documentation, installation guides, and usage tutorials, visit:
-
-👉 **[Kosh Docs](https://kosh.plutolab.org)**
+This README is for **developers and contributors**. For end-user docs visit [kosh.plutolab.org](https://kosh.plutolab.org).
 
 ---
 
-## 📚 Documentation
+## Prerequisites
 
-All user-facing docs (installation, usage, guides, architecture explanations) now live at:
-
-➡️ **[Getting Started](https://kosh.plutolab.org/guides/getting-started)**
-
-Developer-focused docs such as architecture, cryptography, and system internals are also gradually being consolidated there.
+- Go 1.26 or later
+- No CGO required (uses a pure-Go SQLite driver)
 
 ---
 
-# 🧩 Project Overview
+## Build
 
-Kosh emphasizes:
-
-* **Local-first security**—all encryption happens on device, nothing leaves the machine
-* **Zero external dependencies**—only standard Go + modern crypto libs
-* **Deterministic + minimal code paths**
-* **Security-focused design**—memory is overwritten where possible, SQLite secure-delete, master password never stored
-
-Kosh is written entirely in **Go**, with a small and clean internal module structure.
-
----
-
-# 🏗 Architecture (High-Level)
-
-### 🔐 Cryptography
-
-* Master password → Argon2id → symmetric vault key
-* Vault unlock secret encrypted using **ChaCha20-Poly1305**
-* Each credential encrypted with an ephemeral Curve25519 key pair + shared secret
-* Nonces generated per-entry, no reuse
-* Secrets decrypted only when necessary, wiped immediately after usage
-
-### 🗄 SQLite Vault
-
-* Single encrypted SQLite file
-* WAL + secure-delete enabled
-* Tables:
-
-  * `credentials` — encrypted payloads + cryptographic and usage metadata
-  * `vault` — encrypted master secret, salt, Curve25519 public key
-
-### 🔎 Adaptive Search
-
-* Fuzzy search across label + user
-* Weighted scoring:
-
-  * label matching
-  * user matching
-  * recency (time decay)
-  * frequency (logarithmic)
-* Tie breakers: usage > label lexicographic
-* Constant-time Levenshtein for normalization
-
----
-
-# 🚀 Development
-
-## 1. Clone the project
-
-```bash
-git clone https://git.plutolab.org/plutolab/kosh.git
-cd kosh
-```
-
-## 2. Build
-
-```bash
+```sh
 go build
 ```
 
-or use the included build script:
+This produces a `kosh` binary in the project root.
 
-```bash
-./build.sh
+### Debug build
+
+Debug builds print verbose log lines including file/line caller info. Enabled via an `ldflags` injection:
+
+```sh
+go build -ldflags="-X git.plutolab.org/plutolab/kosh/internal/logger.BuildMode=debug"
 ```
 
-The `kosh` binary will be generated in the project root.
+The flag sets `logger.BuildMode` from its default `"production"` to `"debug"`, enabling all `logger.Debug(...)` calls throughout the codebase.
 
-## 3. Run tests (coming soon)
+---
 
-When tests are added:
+## Quick start
 
-```bash
+```sh
+# 1. Initialize the vault (first time only)
+kosh init
+
+# 2. Add a credential
+kosh add
+
+# 3. Search (default command — runs when no subcommand is given)
+kosh github
+# equivalent to:
+kosh search github
+```
+
+The vault lives at `~/.kosh/kosh.db`.
+
+---
+
+## Commands
+
+| Command | Description |
+|---|---|
+| `kosh init` | Initialize the vault with a master password |
+| `kosh add` | Interactively add a new credential |
+| `kosh search [label] [user]` | Fuzzy-search credentials (default command) |
+| `kosh search` (no args) | Interactive live-filter search (arrow keys + enter) |
+| `kosh get <label> <user>` | Retrieve credential by exact label + user |
+| `kosh list` | List all credentials |
+| `kosh list -l <label> -u <user>` | List with filters |
+| `kosh update <id>` | Update label, user, or secret for a credential |
+| `kosh delete <id>` | Delete a credential by ID |
+| `kosh generate <label> <user>` | Generate and store a strong password |
+| `kosh generate -n` | Generate a password without saving it |
+
+### Shorthand
+
+Any argument that isn't a known subcommand is treated as a search query:
+
+```sh
+kosh aws        # → kosh search aws
+kosh gh alice   # → kosh search gh alice
+```
+
+### Password generation flags
+
+```sh
+kosh generate -l 32 --require "upper=2,lower=10,digit=5,symbol=3" <label> <user>
+kosh generate --symbol=false <label> <user>
+kosh generate -n   # generate only, copy to clipboard, don't save
+```
+
+---
+
+## Project structure
+
+```
+kosh/
+├── main.go                     # Entry point
+├── cmd/                        # CLI commands (cobra)
+│   ├── root.go                 # Root command, arg interception, Execute()
+│   ├── init.go                 # kosh init
+│   ├── add.go                  # kosh add
+│   ├── get.go                  # kosh get
+│   ├── search.go               # kosh search (default)
+│   ├── list.go                 # kosh list
+│   ├── update.go               # kosh update
+│   ├── delete.go               # kosh delete
+│   └── generate.go             # kosh generate
+├── internal/
+│   ├── core/
+│   │   └── vault_service.go    # Business logic: add/decrypt/update credentials
+│   ├── crypto/
+│   │   └── crypto.go           # Argon2id, XChaCha20-Poly1305, Curve25519 wrappers
+│   ├── storage/
+│   │   ├── store.go            # Store interface + SQLite init/pragmas
+│   │   ├── vault.go            # Vault table CRUD
+│   │   └── credential.go       # Credentials table CRUD
+│   ├── model/
+│   │   ├── credential.go       # Credential / CredentialData / CredentialSummary
+│   │   └── vault.go            # Vault / VaultData models
+│   ├── search/
+│   │   └── search.go           # Weighted fuzzy search + Levenshtein scoring
+│   ├── ui/
+│   │   ├── search.go           # Interactive TUI search (raw terminal mode)
+│   │   ├── field.go            # Input helpers (secret field, string field, confirm)
+│   │   └── clipboard.go        # Clipboard copy
+│   ├── logger/
+│   │   └── logger.go           # Colored terminal logger; BuildMode controls debug output
+│   ├── encoding/
+│   │   └── text.go             # Base64 encode/decode helpers
+│   └── constants/
+│       ├── credential.go       # AccessCountResetThreshold
+│       ├── errors.go           # Sentinel errors
+│       ├── messages.go         # User-facing message strings
+│       └── prompts.go          # Prompt strings
+└── .goreleaser.yaml            # Release automation (Linux / macOS / Windows)
+```
+
+---
+
+## Architecture
+
+See [docs/architecture.md](docs/architecture.md) for the full write-up. Summary:
+
+**Vault key derivation**
+Master password + random 16-byte salt → Argon2id (t=1, m=64MB, p=4) → 32-byte unlock key.
+
+**Vault storage**
+A Curve25519 keypair is generated at `kosh init`. The private key is encrypted with the unlock key via XChaCha20-Poly1305. The public key and ciphertext are stored in the `vault` table.
+
+**Credential encryption**
+Each credential uses a fresh ephemeral Curve25519 keypair. The shared secret (`X25519(ephemeral_priv, vault_pub)`) is hashed with SHA-256 to produce the encryption key. The secret is encrypted with XChaCha20-Poly1305; the ephemeral public key, ciphertext, and nonce are all stored in the `credentials` table.
+
+**Decryption**
+Derive unlock key → decrypt vault private key → `X25519(vault_priv, ephemeral_pub)` → SHA-256 → decrypt credential.
+
+**Search**
+Weighted scoring across label (60%), user (20%), recency (12%), and frequency (5%). String similarity uses Levenshtein distance with prefix/substring boosts. Results above a threshold of 0.2 are returned sorted by score.
+
+---
+
+## Running tests
+
+```sh
 go test ./...
 ```
 
----
-
-# 🤝 Contributing
-
-Contributions are welcome! Areas that need help include:
-
-* Improving test coverage
-* Performance tuning search / database IO
-* Better error messages & user experience
-* Security audits & design review
-* Documentation contributions (architecture, diagrams, deeper cryptography explanations)
-
-Before submitting a PR:
-
-1. Ensure the code passes `go vet` and builds cleanly
-2. Keep PRs small and focused
-3. Follow the existing project structure and naming patterns
-4. Do **not** introduce unnecessary dependencies
+Tests currently cover the password generator (`cmd/generate_test.go`). More coverage is a welcome contribution.
 
 ---
 
-# 🔐 Security Model (Developer Notes)
+## Contributing
 
-* Master password cannot currently be changed after vault initialization
-* Losing the master password **permanently locks the vault**
-* No backdoor, recovery mechanism, or plaintext fallback
-* Secrets and sensitive buffers should be overridden when possible
-* SQLite **secure-delete** ensures deleted rows cannot be recovered
+1. `go vet ./...` must pass before submitting
+2. Keep PRs small and focused on one thing
+3. Do not add unnecessary dependencies
+4. Follow existing naming and package conventions
 
-For detailed design docs, cryptography explanations, and diagrams:
+Areas that need help: test coverage, error messages, security audits, documentation.
 
-👉 **[Encryption Architecture](https://kosh.plutolab.org/technical/encryption)**
+---
+
+## Security model
+
+- The master password is never stored; it is derived each time
+- Losing the master password **permanently locks the vault** — no recovery mechanism exists
+- Each credential uses a unique ephemeral keypair and nonce — no key or nonce reuse
+- SQLite is opened with `secure_delete=ON`; deleted rows are overwritten
+- The vault file permissions are `0700` on the `.kosh` directory
+
+For the full cryptographic design see [docs/architecture.md](docs/architecture.md).

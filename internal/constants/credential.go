@@ -1,5 +1,5 @@
 package constants
 
 const (
-	AccessCountResetThreshold = 10_000
+	AccessCountResetThreshold = 2_000
 )

@@ -19,7 +19,7 @@ const (
 	FREQUENCY_WEIGHT = 0.05
 
 	// string scoring
-	PREFIX_BOOST    = 1.0
+	PREFIX_BOOST    = 0.8
 	SUBSTRING_BOOST = 0.5
 
 	// limits
@@ -51,10 +51,10 @@ func search(queryLabel, queryUser string, credentials []model.Credential, thresh
 	logger.Debug("query %s %s", queryLabel, queryUser)
 	for _, c := range credentials {
 		score := ScoreQuery(
-			strings.ToLower(queryLabel),
-			strings.ToLower(queryUser),
-			strings.ToLower(c.Label),
-			strings.ToLower(c.User),
+			queryLabel,
+			queryUser,
+			c.Label,
+			c.User,
 			c.AccessCount,
 			c.AccessedAt,
 			now,
@@ -105,13 +105,20 @@ func ScoreQuery(queryLabel, queryUser, label, user string, count int, last time.
 		userScore = stringScore(queryUser, user) * USER_WEIGHT
 	}
 
-	score := labelScore + userScore + recScore + freqScore
+	score := (labelScore + userScore) * (1 + recScore + freqScore)
 	return score
 }
 
 // stringScore provides a score for query and target match based on levenshtein distance (normalized) with bias
 // towards prefix and substring matching. In case of an exact match a MAX_STRING_SCORE is returned.
 func stringScore(query, target string) float64 {
+	query = strings.ToLower(strings.TrimSpace(query))
+	target = strings.ToLower(strings.TrimSpace(target))
+	// Empty query shouldn't match anything
+	if query == "" {
+		return 0
+	}
+
 	// On exact match return max score
 	if query == target {
 		return MAX_STRING_SCORE
@@ -120,9 +127,9 @@ func stringScore(query, target string) float64 {
 	simScore := similarityScore(query, target)
 
 	if strings.HasPrefix(target, query) {
-		simScore += PREFIX_BOOST
+		simScore += (MAX_STRING_SCORE - simScore) * PREFIX_BOOST
 	} else if strings.Contains(target, query) {
-		simScore += SUBSTRING_BOOST
+		simScore += (MAX_STRING_SCORE - simScore) * SUBSTRING_BOOST
 	}
 
 	return simScore
@@ -154,7 +161,7 @@ func frequencyScore(count int) float64 {
 	if count <= 0 {
 		return 0
 	}
-	return math.Log(float64(count)+1.0) / 5.0
+	return math.Log(float64(count)+1.0) / 15.0
 }
 
 // helper functions

@@ -48,12 +48,13 @@ func runGet(desiredGroup string, desiredUser string) error {
 	if err != nil {
 		return err
 	}
+
+	ui.CopyToClipboard([]byte(secret))
+	logger.Info(constants.MsgCopiedCredential)
+	
 	// on successful access update the access info for the credential,
 	// increment access count by 2 on get because it has been fetched
 	// with intention meaning that user might be wanting this more
 	store.UpdateCredentialAccessCount(credential.Id, 2, time.Now())
-
-	ui.CopyToClipboard([]byte(secret))
-	logger.Info(constants.MsgCopiedCredential)
 	return nil
 }

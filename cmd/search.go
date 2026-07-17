@@ -75,11 +75,12 @@ func runSearch(result *search.SearchResult) error {
 		logger.Debug("runSearch:failed to decrypt credential")
 		return err
 	}
-
-	// increment access count by 1 on successful search
-	store.UpdateCredentialAccessCount(result.Credential.Id, 1, time.Now())
+	
 	ui.CopyToClipboard([]byte(secret))
 	logger.Info(constants.MsgCopiedCredential)
+	
+	// increment access count by 1 on successful search
+	store.UpdateCredentialAccessCount(result.Credential.Id, 1, time.Now())
 	return nil
 }
 

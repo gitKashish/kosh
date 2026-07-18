@@ -137,7 +137,7 @@ func stringScore(query, target string) float64 {
 
 // similarityScore provides a normalized levenshtein distance between source and target strings
 func similarityScore(source, target string) float64 {
-	distance := levenshtein(source, target)
+	distance := damerauLevenshtein(source, target)
 	maxLen := max(len(source), len(target))
 	similarity := 1.0 - (float64(distance) / float64(maxLen))
 	return similarity
@@ -166,7 +166,7 @@ func frequencyScore(count int) float64 {
 
 // helper functions
 
-func levenshtein(a, b string) int {
+func damerauLevenshtein(a, b string) int {
 	la, lb := len(a), len(b)
 	if la == 0 {
 		return lb
@@ -180,6 +180,7 @@ func levenshtein(a, b string) int {
 		la, lb = lb, la
 	}
 
+	prevPrev := make([]int, la+1)
 	prev := make([]int, la+1)
 	curr := make([]int, la+1)
 
@@ -201,10 +202,15 @@ func levenshtein(a, b string) int {
 			insertion := curr[i-1] + 1
 			substitution := prev[i-1] + cost
 
-			curr[i] = min(deletion, min(insertion, substitution))
+			curr[i] = min(deletion, insertion, substitution)
+
+			// The Damerau-Levenshtein Transposition Patch
+			if i > 1 && j > 1 && a[i-1] == b[j-2] && a[i-2] == bj {
+				curr[i] = min(curr[i], prevPrev[i-2]+1)
+			}
 		}
 
-		prev, curr = curr, prev
+		prevPrev, prev, curr = prev, curr, prevPrev
 	}
 
 	return prev[la]

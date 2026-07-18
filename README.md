@@ -56,6 +56,7 @@ The vault lives at `~/.kosh/kosh.db`.
 
 | Command | Description |
 |---|---|
+| `kosh` | Short-hand for `kosh search` (no args) |
 | `kosh init` | Initialize the vault with a master password |
 | `kosh add` | Interactively add a new credential |
 | `kosh search [label] [user]` | Fuzzy-search credentials (default command) |
@@ -151,7 +152,7 @@ Each credential uses a fresh ephemeral Curve25519 keypair. The shared secret (`X
 Derive unlock key → decrypt vault private key → `X25519(vault_priv, ephemeral_pub)` → SHA-256 → decrypt credential.
 
 **Search**
-Weighted scoring across label (60%), user (20%), recency (12%), and frequency (5%). String similarity uses Levenshtein distance with prefix/substring boosts. Results above a threshold of 0.2 are returned sorted by score.
+Weighted scoring across label (60%), user (20%), recency (12%), and frequency (5%). String similarity uses Levenshtein distance with prefix/substring/subsequence boosts. Results above a threshold of 0.2 are returned sorted by score.
 
 ---
 
@@ -161,7 +162,7 @@ Weighted scoring across label (60%), user (20%), recency (12%), and frequency (5
 go test ./...
 ```
 
-Tests currently cover the password generator (`cmd/generate_test.go`). More coverage is a welcome contribution.
+Tests currently cover the password generator and search functionality. More coverage is a welcome contribution.
 
 ---
 
@@ -172,7 +173,7 @@ Tests currently cover the password generator (`cmd/generate_test.go`). More cove
 3. Do not add unnecessary dependencies
 4. Follow existing naming and package conventions
 
-Areas that need help: test coverage, error messages, security audits, documentation.
+Areas that need help: test coverage, security audits, documentation.
 
 ---
 

@@ -19,8 +19,9 @@ const (
 	FREQUENCY_WEIGHT = 0.05
 
 	// string scoring
-	PREFIX_BOOST    = 0.8
-	SUBSTRING_BOOST = 0.5
+	PREFIX_BOOST = 0.8
+	SUBSTR_BOOST = 0.5
+	SUBSEQ_BOOST = 0.4
 
 	// limits
 	MAX_STRING_SCORE    = 1.0
@@ -129,7 +130,9 @@ func stringScore(query, target string) float64 {
 	if strings.HasPrefix(target, query) {
 		simScore += (MAX_STRING_SCORE - simScore) * PREFIX_BOOST
 	} else if strings.Contains(target, query) {
-		simScore += (MAX_STRING_SCORE - simScore) * SUBSTRING_BOOST
+		simScore += (MAX_STRING_SCORE - simScore) * SUBSTR_BOOST
+	} else if isSubsequence(query, target) {
+		simScore += (MAX_STRING_SCORE - simScore) * SUBSEQ_BOOST
 	}
 
 	return simScore
@@ -165,6 +168,16 @@ func frequencyScore(count int) float64 {
 }
 
 // helper functions
+func isSubsequence(query, target string) bool {
+	qIdx, tIdx := 0, 0
+	for qIdx < len(query) && tIdx < len(target) {
+		if query[qIdx] == target[tIdx] {
+			qIdx++
+		}
+		tIdx++
+	}
+	return qIdx == len(query)
+}
 
 func damerauLevenshtein(a, b string) int {
 	la, lb := len(a), len(b)

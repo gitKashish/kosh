@@ -37,11 +37,9 @@ func (s SearchResult) Display() string {
 	return fmt.Sprintf("%s (%s) [%.3f]", s.Credential.Label, s.Credential.User, s.Score)
 }
 
+// BestMatches is a wrapper around the main search function
 func BestMatches(queryLabel, queryUser string, credentials []model.Credential, now time.Time) []SearchResult {
 	res := search(queryLabel, queryUser, credentials, MIN_SCORE_THRESHOLD, now)
-	if len(res) == 0 {
-		return nil
-	}
 	return res
 }
 
@@ -141,6 +139,9 @@ func stringScore(query, target string) float64 {
 // similarityScore provides a normalized levenshtein distance between source and target strings
 func similarityScore(source, target string) float64 {
 	distance := damerauLevenshtein(source, target)
+	if distance == 0 {
+		return 1.0
+	}
 	maxLen := max(len(source), len(target))
 	similarity := 1.0 - (float64(distance) / float64(maxLen))
 	return similarity

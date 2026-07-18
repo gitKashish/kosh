@@ -6,9 +6,10 @@ import (
 	"time"
 
 	"git.plutolab.org/plutolab/kosh/internal/constants"
+	"git.plutolab.org/plutolab/kosh/internal/model"
 )
 
-func TestLevenshtein(t *testing.T) {
+func TestDamerauLevenshtein(t *testing.T) {
 	tests := []struct {
 		name string
 		a, b string
@@ -32,11 +33,15 @@ func TestLevenshtein(t *testing.T) {
 		// Structural
 		{"symmetry", "kitten", "sitting", 3},
 		{"case sensitive", "ABC", "abc", 3},
+
+		// Adjacent Swap
+		{"adjacent characters mistyped", "catr", "cart", 1},
+		{"spaced apart swapped characters", "crta", "cart", 2},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := levenshtein(tt.a, tt.b)
+			got := damerauLevenshtein(tt.a, tt.b)
 			if got != tt.want {
 				t.Errorf(
 					"levenshtein(%s, %s) = %d, want %d",
@@ -104,20 +109,77 @@ func TestStringScore(t *testing.T) {
 	})
 
 	t.Run("scoring order: exact > prefix > substring > fuzzy", func(t *testing.T) {
-		exact := stringScore("git", "git")
-		prefix := stringScore("git", "gitlab")
-		substring := stringScore("git", "digit")
-		fuzzy := stringScore("git", "gat")
+		// Keeping levenshteinDistance same (except for exact match)
+		// so that only boosts affect the final result
+		exact := stringScore("git", "git")        // lev distance = 0
+		prefix := stringScore("git", "gitX")      // lev distance = 1
+		substring := stringScore("git", "Xgit")   // lev distance = 1
+		subsequence := stringScore("git", "gXit") // lev distance = 1
+		fuzzy := stringScore("git", "gXt")        // leve distance = 1
 
 		if !(exact > prefix &&
 			prefix > substring &&
-			substring > fuzzy) {
+			substring > subsequence &&
+			subsequence > fuzzy) {
 			t.Errorf(
-				"ordering violated, exact=%f prefix=%f substr=%f fuzzy=%f",
-				exact, prefix, substring, fuzzy,
+				"ordering violated, exact=%f prefix=%f substr=%f subsequence=%f fuzzy=%f",
+				exact, prefix, substring, subsequence, fuzzy,
 			)
 		}
 	})
+
+	t.Run("abbrevation should match", func(t *testing.T) {
+		score := stringScore("sslv", "saas_slave_database")
+		if score < MIN_SCORE_THRESHOLD {
+			t.Errorf(
+				"abbrevation score (%f), must be greater than %f",
+				score, MIN_SCORE_THRESHOLD,
+			)
+		}
+	})
+
+	t.Run("out-of-order abbrevation should score less than in-order", func(t *testing.T) {
+		inOrder := stringScore("ssslv", "saas_slave_database")
+		outOfOrder := stringScore("slvss", "saas_slave_database")
+		if outOfOrder >= inOrder {
+			t.Errorf(
+				"out-of-order abbrevation score (%f), must be less than in-order abbrevation score (%f)",
+				outOfOrder, inOrder,
+			)
+		}
+	})
+}
+
+func TestScoreQuery_UserOnly(t *testing.T) {
+	now := time.Now()
+	last := time.Now().Add(-1 * time.Hour)
+
+	score := ScoreQuery("", "alice", "github", "alice", 0, last, now)
+
+	if score == 0 {
+		t.Fatal("expected non-zero score for matching user")
+	}
+}
+
+func TestScoreQuery_LabelAndUserBoost(t *testing.T) {
+	now := time.Now()
+	last := time.Now().Add(-1 * time.Hour)
+
+	labelOnly := ScoreQuery("git", "", "github", "alice", 10, last, now)
+	both := ScoreQuery("git", "alice", "github", "alice", 10, last, now)
+
+	if both <= labelOnly {
+		t.Fatal("combined label+user query should score higher")
+	}
+}
+
+func TestSimilarityScore_EmptyStrings(t *testing.T) {
+	if got := similarityScore("", ""); got != 1.0 {
+		t.Fatalf(
+			"empty strings should be perfectly similar, got %f, want %f",
+			got, 1.0,
+		)
+	}
 }
 
 func TestRecencyScore(t *testing.T) {
@@ -190,4 +252,80 @@ func TestFrequencyScore(t *testing.T) {
 			t.Errorf("cred with max usage before reset has score %f, must be less than 1.0", got)
 		}
 	})
+}
+
+func TestSearch_Ranking(t *testing.T) {
+	now := time.Now()
+
+	tests := []struct {
+		name     string
+		query    string
+		creds    []model.Credential
+		expected string
+	}{
+		{
+			name:  "higher frequency wins when string quality is similar",
+			query: "git",
+			creds: []model.Credential{
+				{Label: "github", AccessCount: 10, AccessedAt: now},
+				{Label: "gitlab", AccessCount: 50, AccessedAt: now},
+			},
+			expected: "gitlab",
+		},
+		{
+			name:  "more recent usage wins",
+			query: "git",
+			creds: []model.Credential{
+				{Label: "github", AccessCount: 10, AccessedAt: now.Add(-1 * time.Hour)},
+				{Label: "gitlab", AccessCount: 50, AccessedAt: now.Add(-7 * 24 * time.Hour)},
+			},
+			expected: "github",
+		},
+		{
+			name:  "prefix match beats fuzzy match",
+			query: "git",
+			creds: []model.Credential{
+				{Label: "github", AccessCount: 1, AccessedAt: now},
+				{Label: "digit", AccessCount: 1000, AccessedAt: now},
+			},
+			expected: "github",
+		},
+		{
+			name:  "lexical order of label wins when score is same",
+			query: "git",
+			creds: []model.Credential{
+				{Label: "github", AccessCount: 10, AccessedAt: time.Now()},
+				{Label: "gitlab", AccessCount: 10, AccessedAt: time.Now()},
+			},
+			expected: "github",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := BestMatches(tt.query, "", tt.creds, now)
+
+			if len(res) == 0 {
+				t.Fatal("expected results")
+			}
+
+			if res[0].Credential.Label != tt.expected {
+				t.Fatalf("expected %s first, got %s", tt.expected, res[0].Credential.Label)
+			}
+		})
+	}
+}
+
+func TestSearch_ThresholdFiltering(t *testing.T) {
+	now := time.Now()
+	creds := []model.Credential{
+		{Label: "abc", AccessCount: 10, AccessedAt: time.Now()},
+		{Label: "github", AccessCount: 10, AccessedAt: time.Now()},
+	}
+
+	res := search("git", "", creds, MIN_SCORE_THRESHOLD, now)
+
+	if len(res) != 1 || res[0].Credential.Label != "github" {
+		t.Fatalf("unexpected results: %+v", res)
+	}
 }

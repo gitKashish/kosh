@@ -19,8 +19,9 @@ const (
 	FREQUENCY_WEIGHT = 0.05
 
 	// string scoring
-	PREFIX_BOOST    = 0.8
-	SUBSTRING_BOOST = 0.5
+	PREFIX_BOOST = 0.8
+	SUBSTR_BOOST = 0.5
+	SUBSEQ_BOOST = 0.4
 
 	// limits
 	MAX_STRING_SCORE    = 1.0
@@ -36,11 +37,9 @@ func (s SearchResult) Display() string {
 	return fmt.Sprintf("%s (%s) [%.3f]", s.Credential.Label, s.Credential.User, s.Score)
 }
 
+// BestMatches is a wrapper around the main search function
 func BestMatches(queryLabel, queryUser string, credentials []model.Credential, now time.Time) []SearchResult {
 	res := search(queryLabel, queryUser, credentials, MIN_SCORE_THRESHOLD, now)
-	if len(res) == 0 {
-		return nil
-	}
 	return res
 }
 
@@ -129,7 +128,9 @@ func stringScore(query, target string) float64 {
 	if strings.HasPrefix(target, query) {
 		simScore += (MAX_STRING_SCORE - simScore) * PREFIX_BOOST
 	} else if strings.Contains(target, query) {
-		simScore += (MAX_STRING_SCORE - simScore) * SUBSTRING_BOOST
+		simScore += (MAX_STRING_SCORE - simScore) * SUBSTR_BOOST
+	} else if isSubsequence(query, target) {
+		simScore += (MAX_STRING_SCORE - simScore) * SUBSEQ_BOOST
 	}
 
 	return simScore
@@ -137,7 +138,10 @@ func stringScore(query, target string) float64 {
 
 // similarityScore provides a normalized levenshtein distance between source and target strings
 func similarityScore(source, target string) float64 {
-	distance := levenshtein(source, target)
+	distance := damerauLevenshtein(source, target)
+	if distance == 0 {
+		return 1.0
+	}
 	maxLen := max(len(source), len(target))
 	similarity := 1.0 - (float64(distance) / float64(maxLen))
 	return similarity
@@ -165,8 +169,18 @@ func frequencyScore(count int) float64 {
 }
 
 // helper functions
+func isSubsequence(query, target string) bool {
+	qIdx, tIdx := 0, 0
+	for qIdx < len(query) && tIdx < len(target) {
+		if query[qIdx] == target[tIdx] {
+			qIdx++
+		}
+		tIdx++
+	}
+	return qIdx == len(query)
+}
 
-func levenshtein(a, b string) int {
+func damerauLevenshtein(a, b string) int {
 	la, lb := len(a), len(b)
 	if la == 0 {
 		return lb
@@ -180,6 +194,7 @@ func levenshtein(a, b string) int {
 		la, lb = lb, la
 	}
 
+	prevPrev := make([]int, la+1)
 	prev := make([]int, la+1)
 	curr := make([]int, la+1)
 
@@ -201,10 +216,15 @@ func levenshtein(a, b string) int {
 			insertion := curr[i-1] + 1
 			substitution := prev[i-1] + cost
 
-			curr[i] = min(deletion, min(insertion, substitution))
+			curr[i] = min(deletion, insertion, substitution)
+
+			// The Damerau-Levenshtein Transposition Patch
+			if i > 1 && j > 1 && a[i-1] == b[j-2] && a[i-2] == bj {
+				curr[i] = min(curr[i], prevPrev[i-2]+1)
+			}
 		}
 
-		prev, curr = curr, prev
+		prevPrev, prev, curr = prev, curr, prevPrev
 	}
 
 	return prev[la]

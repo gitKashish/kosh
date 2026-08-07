@@ -2,106 +2,123 @@ package cmd
 
 import (
 	"crypto/subtle"
-	"database/sql"
 	"fmt"
+	"log/slog"
 	"strconv"
 
+	"git.plutolab.org/plutolab/kosh/internal/app"
 	"git.plutolab.org/plutolab/kosh/internal/constants"
-	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"git.plutolab.org/plutolab/kosh/internal/model"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"github.com/spf13/cobra"
 )
 
-var updateCmd = &cobra.Command{
-	Use:   "update <id>",
-	Short: "Update an existing credential by ID",
-	Args:  cobra.ExactArgs(1),
+func NewCmdUpdate(ctx *app.Context) *cobra.Command {
+	updateCmd := &cobra.Command{
+		Use:   "update <id>",
+		Short: "Update the label, user or secret of a credential",
+		Long: `Update an existing credential, identified by its numeric ID.
 
-	RunE: func(cmd *cobra.Command, args []string) error {
-		id, err := strconv.Atoi(args[0])
-		if err != nil {
-			logger.Error("%s", constants.ErrIdMustBeInteger.Error())
-			return err
-		}
-		return runUpdate(id)
-	},
+Run "kosh list" to find the ID. After the master password is verified you choose
+which single field to change - label, user or secret - and are asked to confirm
+before anything is written.
+
+Renaming a label or user cannot produce a duplicate: if another credential
+already uses the resulting label and user pair, the update is aborted. Changing
+the secret re-encrypts it with a fresh ephemeral key and nonce, and the previous
+value is gone for good.`,
+
+		Example: `  Update the credential with ID 3:
+    kosh update 3
+
+  Look up the ID first:
+    kosh list -l github
+    kosh update 7`,
+
+		Args: cobra.ExactArgs(1),
+
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id, err := strconv.Atoi(args[0])
+			if err != nil {
+				ui.Error("%s", constants.ErrIdMustBeInteger.Error())
+				return err
+			}
+			return runUpdate(cmd, ctx, id)
+		},
+	}
+	return updateCmd
 }
 
-func init() {
-	rootCmd.AddCommand(updateCmd)
-}
-
-func runUpdate(id int) error {
+func runUpdate(_ *cobra.Command, ctx *app.Context, id int) error {
 	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
-		logger.Error("%s", constants.ErrFailedToReadInput.Error())
+		ui.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
-	if err := vault.VerifyMasterPassword(password); err != nil {
-		logger.Error("%s", constants.ErrIncorrectMasterPassword.Error())
+	if err := ctx.Vault.VerifyMasterPassword(password); err != nil {
+		ui.Error("%s", constants.ErrIncorrectMasterPassword.Error())
 		return err
 	}
 
 	// check credential existence
-	credential, err := store.GetCredentialById(id)
-	if err == sql.ErrNoRows {
+	credential, err := ctx.Store.GetCredentialById(id)
+	if err == constants.ErrCredentialNotFound {
 		// credential does not exist
-		logger.Error("%s", constants.ErrCredentialNotFound.Error())
+		ui.Error("%s", constants.ErrCredentialNotFound.Error())
 		return nil
 	}
 
 	if err != nil {
-		logger.Error("%s", constants.ErrFailedToFetchCredential.Error())
+		ui.Error("%s", constants.ErrFailedToFetchCredential.Error())
 		return err
 	}
 
 	updateOptions := []string{"label", "user", "secret", "abort"}
 	option := ui.GetOptionFieldWithRetry(
-		constants.MsgSelectCredentialFieldToUpdate,
+		constants.MsgSelectCredentialField,
 		updateOptions,
 		3,
 	)
 
 	switch option {
 	case 0:
-		err = updateLabel(credential)
+		err = updateLabel(ctx, credential)
 	case 1:
-		err = updateUser(credential)
+		err = updateUser(ctx, credential)
 	case 2:
-		err = updateSecret(credential)
+		err = updateSecret(ctx, credential)
 	case 3:
-		logger.Info(constants.MsgOperationAborted)
+		ui.Info(constants.MsgOperationAborted)
 		return nil
 	default:
-		logger.Error("%s", constants.ErrInvalidArguments.Error())
+		ui.Error("%s", constants.ErrInvalidArguments.Error())
 		return nil
 	}
 
 	if err != nil {
-		logger.Error("failed to update %s", updateOptions[option])
+		ui.Error("failed to update %s", updateOptions[option])
 	}
 
 	return err
 }
 
-func updateLabel(credential *model.Credential) error {
+func updateLabel(ctx *app.Context, credential *model.Credential) error {
 	newLabel, err := ui.ReadStringField(constants.MsgEnterCredentialLabel)
 	if err != nil {
-		logger.Error("%s", constants.ErrFailedToReadInput.Error())
+		ui.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
-	existingCredential, err := store.GetCredentialByLabelAndUser(newLabel, credential.User)
-	if err != nil && err != sql.ErrNoRows {
-		logger.Error("%s", constants.ErrFailedToFetchCredential.Error())
+	existingCredential, err := ctx.Store.GetCredentialByLabelAndUser(newLabel, credential.User)
+	if err != nil && err != constants.ErrCredentialNotFound {
+		ui.Error("%s", constants.ErrFailedToFetchCredential.Error())
 		return err
 	}
 
 	if existingCredential != nil {
-		logger.Error("%s", constants.ErrCredentialAlreadyExists.Error())
-		logger.Info(constants.MsgOperationAborted)
+		ui.Error("%s", constants.ErrCredentialAlreadyExists.Error())
+		ui.Info(constants.MsgOperationAborted)
 		return nil
 	}
 
@@ -111,47 +128,47 @@ func updateLabel(credential *model.Credential) error {
 		newLabel,
 	)
 	confirm, err := ui.ConfirmWithText(
-		constants.MsgOperationIsPermanent,
+		constants.MsgConfirmCredentialChange,
 		confirmationText,
 	)
 	if err != nil {
-		logger.Error("%s", constants.ErrFailedToReadInput.Error())
+		ui.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
 	if !confirm {
-		logger.Info(constants.MsgOperationAborted)
+		ui.Info(constants.MsgOperationAborted)
 		return nil
 	}
 
-	err = store.UpdateCredential(&model.Credential{
+	err = ctx.Store.UpdateCredential(&model.Credential{
 		Label: newLabel,
 		Id:    credential.Id,
 	})
 
 	if err == nil {
-		logger.Info("%s", constants.MsgUpdatedCredential)
+		ui.Info(constants.MsgCredentialUpdated)
 	}
 
 	return err
 }
 
-func updateUser(credential *model.Credential) error {
-	newUser, err := ui.ReadStringField(constants.MsgEnterCredentialUsername)
+func updateUser(ctx *app.Context, credential *model.Credential) error {
+	newUser, err := ui.ReadStringField(constants.MsgEnterCredentialUser)
 	if err != nil {
-		logger.Error("%s", constants.ErrFailedToReadInput.Error())
+		ui.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
-	existingCredential, err := store.GetCredentialByLabelAndUser(credential.Label, newUser)
-	if err != nil && err != sql.ErrNoRows {
-		logger.Error("%s", constants.ErrFailedToFetchCredential.Error())
+	existingCredential, err := ctx.Store.GetCredentialByLabelAndUser(credential.Label, newUser)
+	if err != nil && err != constants.ErrCredentialNotFound {
+		ui.Error("%s", constants.ErrFailedToFetchCredential.Error())
 		return err
 	}
 
 	if existingCredential != nil {
-		logger.Error("%s", constants.ErrCredentialAlreadyExists.Error())
-		logger.Info(constants.MsgOperationAborted)
+		ui.Error("%s", constants.ErrCredentialAlreadyExists.Error())
+		ui.Info(constants.MsgOperationAborted)
 		return nil
 	}
 
@@ -161,70 +178,70 @@ func updateUser(credential *model.Credential) error {
 		newUser,
 	)
 	confirm, err := ui.ConfirmWithText(
-		constants.MsgOperationIsPermanent,
+		constants.MsgConfirmCredentialChange,
 		confirmationText,
 	)
 	if err != nil {
-		logger.Error("%s", constants.ErrFailedToReadInput.Error())
+		ui.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
 	if !confirm {
-		logger.Info(constants.MsgOperationAborted)
+		ui.Info(constants.MsgOperationAborted)
 		return nil
 	}
 
-	err = store.UpdateCredential(&model.Credential{
+	err = ctx.Store.UpdateCredential(&model.Credential{
 		User: newUser,
 		Id:   credential.Id,
 	})
 
 	if err == nil {
-		logger.Info("%s", constants.MsgUpdatedCredential)
+		ui.Info(constants.MsgCredentialUpdated)
 	}
 
 	return err
 }
 
-func updateSecret(credential *model.Credential) error {
+func updateSecret(ctx *app.Context, credential *model.Credential) error {
 	newSecret, err := ui.ReadSecretField(constants.MsgEnterCredentialSecret)
 	if err != nil {
-		logger.Error("%s", constants.ErrFailedToReadInput.Error())
+		ui.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
 	confirmSecret, err := ui.ReadSecretField(constants.MsgConfirmCredentialSecret)
 	if err != nil {
-		logger.Error("%s", constants.ErrFailedToReadInput.Error())
+		ui.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
 	if subtle.ConstantTimeCompare(newSecret, confirmSecret) == 0 {
-		logger.Error("%s", constants.ErrSecretDoesNotMatch.Error())
+		ui.Error("%s", constants.ErrSecretDoesNotMatch.Error())
 		return nil
 	}
 
-	logger.Warn(constants.MsgOverwriteCredential)
 	confirm, err := ui.ConfirmWithText(
 		constants.MsgOperationIsPermanent,
 		fmt.Sprintf("update %s credential secret", credential.Label),
 	)
 	if err != nil {
-		logger.Error("%s", constants.ErrFailedToReadInput.Error())
+		ui.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
 	if !confirm {
-		logger.Info(constants.MsgOperationAborted)
+		ui.Info(constants.MsgOperationAborted)
 		return nil
 	}
 
-	err = vault.UpdateCredentialSecret(credential.Id, newSecret)
+	err = ctx.Vault.UpdateCredentialSecret(credential.Id, newSecret)
 	if err != nil {
-		logger.Error("%s", constants.ErrFailedToSaveCredential.Error())
-		logger.Debug("%v", err)
+		ui.Error("%s", constants.ErrFailedToSaveCredential.Error())
+		// error is deliberately not propagated, so this is the only record of it
+		slog.Debug("failed to update credential secret", "error", err)
 	} else {
-		logger.Info("%s", constants.MsgUpdatedCredential)
+		ui.Info(constants.MsgCredentialUpdated)
 	}
 
 	return nil

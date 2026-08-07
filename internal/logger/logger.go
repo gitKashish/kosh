@@ -1,98 +1,47 @@
 package logger
 
 import (
-	"fmt"
-	"io"
+	"log/slog"
+	"math"
 	"os"
-	"runtime"
+	"strconv"
 )
 
-const (
-	BUILD_MODE_PRODUCTION = "production"
-	BUILD_MODE_DEBUG      = "debug"
-)
+// levelOff sits above every other log level,
+// so nothing is ever emitted.
+const levelOff = slog.Level(math.MaxInt32)
 
-var BuildMode = BUILD_MODE_PRODUCTION
+var levelVar = new(slog.LevelVar)
 
-const (
-	ColorReset  = "\033[0m"
-	ColorRed    = "\033[31m"
-	ColorGreen  = "\033[32m"
-	ColorYellow = "\033[33m"
-	ColorBlue   = "\033[34m"
-	ColorCyan   = "\033[36m"
-	ColorGray   = "\033[90m"
-)
+// Setup installs the process-wide diagnostic logger,
+// Output is off unless $KOSH_DEBUG is set to a truthy
+// value (1, true, t, ...)
+func Setup() {
+	levelVar.Set(levelFromEnv())
 
-// Output writers. Swap these (via Pause) to silence or redirect logging,
-// e.g. while a raw-mode TUI owns the terminal.
-var (
-	out    io.Writer = os.Stdout
-	errOut io.Writer = os.Stderr
-)
+	loggerOptions := &slog.HandlerOptions{
+		Level:     levelVar,
+		AddSource: true,
+	}
+	logger := slog.New(slog.NewTextHandler(os.Stderr, loggerOptions))
+	slog.SetDefault(logger)
+}
 
-// Pause silences all logger output and returns a function that restores the
-// previous writers. Use it around interactive/raw-mode sessions that own the
-// terminal cursor, so stray log lines don't corrupt the display:
-//
-//	defer logger.Pause()()
 func Pause() func() {
-	prevOut, prevErr := out, errOut
-	out, errOut = io.Discard, io.Discard
-	return func() {
-		out, errOut = prevOut, prevErr
+	prev := levelVar.Level()
+	levelVar.Set(levelOff)
+	return func() { levelVar.Set(prev) }
+}
+
+func levelFromEnv() slog.Level {
+	v, ok := os.LookupEnv("KOSH_DEBUG")
+	if !ok {
+		return levelOff
 	}
-}
 
-// Error prints error messages
-func Error(format string, args ...any) {
-	message := fmt.Sprintf(format, args...)
-	fmt.Fprintf(errOut, "%s[✗]%s %s\n", ColorRed, ColorReset, message)
-}
-
-// Info prints informational messages
-func Info(format string, args ...any) {
-	message := fmt.Sprintf(format, args...)
-	fmt.Fprintf(out, "%s[✓]%s %s\n", ColorGreen, ColorReset, message)
-}
-
-// Warn prints warning messages
-func Warn(format string, args ...any) {
-	message := fmt.Sprintf(format, args...)
-	fmt.Fprintf(out, "%s[!]%s %s\n", ColorYellow, ColorReset, message)
-}
-
-// Debug prints debug messages
-func Debug(format string, args ...any) {
-	if BuildMode == BUILD_MODE_PRODUCTION {
-		return
+	on, err := strconv.ParseBool(v)
+	if err != nil || !on {
+		return levelOff
 	}
-	_, file, line, ok := runtime.Caller(1)
-	caller := ""
-	if ok {
-		for i := len(file) - 1; i > 0; i-- {
-			if file[i] == '/' {
-				file = file[i+1:]
-				break
-			}
-		}
-		caller = fmt.Sprintf("%s:%d", file, line)
-	}
-	message := fmt.Sprintf(format, args...)
-	fmt.Fprintf(out, "%s[→]%s %s %s[%s]%s\n",
-		ColorBlue, ColorReset,
-		message,
-		ColorGray, caller, ColorReset)
-}
-
-// Prompt prints a prompt for user input
-func Prompt(format string, args ...any) {
-	message := fmt.Sprintf(format, args...)
-	fmt.Fprintf(out, "%s[?]%s %s", ColorCyan, ColorReset, message)
-}
-
-// Muted prints muted text messages
-func Muted(format string, args ...any) {
-	message := fmt.Sprintf(format, args...)
-	fmt.Fprintf(out, "%s[•] %s%s\n", ColorGray, message, ColorReset)
+	return slog.LevelDebug
 }

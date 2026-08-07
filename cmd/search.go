@@ -2,85 +2,111 @@ package cmd
 
 import (
 	"errors"
+	"log/slog"
 	"strings"
 	"time"
 
+	"git.plutolab.org/plutolab/kosh/internal/app"
 	"git.plutolab.org/plutolab/kosh/internal/constants"
-	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"git.plutolab.org/plutolab/kosh/internal/model"
 	"git.plutolab.org/plutolab/kosh/internal/search"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"github.com/spf13/cobra"
 )
 
-var searchCmd = &cobra.Command{
-	Use:   "search <label> <user>",
-	Short: "Retrieve a credential via fuzzy search",
-	Args:  cobra.RangeArgs(0, 2),
+func NewCmdSearch(ctx *app.Context) *cobra.Command {
+	searchCmd := &cobra.Command{
+		Use:   "search [label] [user]",
+		Short: "Copy a credential found by fuzzy search (default command)",
+		Long: `Find a credential by fuzzy search and copy its secret to the clipboard.
 
-	RunE: func(cmd *cobra.Command, args []string) error {
-		credentials, err := store.GetAllCredentials()
-		if err != nil {
-			logger.Error("%s", constants.ErrFailedToFetchCredential.Error())
-			return nil
-		}
+With no arguments the search is interactive: type to filter the vault live and
+press enter to pick from the top matches. With arguments, the best match for the
+given label (and optional user) is selected straight away.
 
-		var result *search.SearchResult
-		if len(args) == 0 { // Interactive Search
-			result, err = runInteractiveSearch(credentials)
+Matching is approximate, so partial and misspelled queries still work. Results
+are ranked mostly on how closely the label and user match, with recently and
+frequently used credentials nudged higher.
+
+This is the default command: any argument that is not a known subcommand is
+passed to it, which makes "kosh github" the same as "kosh search github". The
+master password is requested only after a match is found, and the secret goes to
+the clipboard, never to the terminal.`,
+
+		Example: `  Pick a credential interactively:
+    kosh search
+
+  Search by label:
+    kosh search github
+
+  Narrow the search with a user:
+    kosh search github alice
+
+  Shorthand form - the search subcommand is implied:
+    kosh github alice`,
+
+		Args: cobra.RangeArgs(0, 2),
+
+		RunE: func(cmd *cobra.Command, args []string) error {
+			credentials, err := ctx.Store.GetAllCredentials()
 			if err != nil {
-				if errors.Is(err, constants.ErrSearchCancelled) {
-					logger.Warn(constants.MsgOperationAborted)
-					return nil
+				slog.Debug("failed to fetch credential for search", "error", err)
+				return nil
+			}
+
+			var result *search.SearchResult
+			if len(args) == 0 { // Interactive Search
+				result, err = runInteractiveSearch(credentials)
+				if err != nil {
+					if errors.Is(err, constants.ErrSearchCancelled) {
+						ui.Info(constants.MsgOperationAborted)
+						return nil
+					}
+					return err
 				}
-				return err
+			} else { // Search by command args
+				var label, user string
+				label = args[0]
+				if len(args) > 1 {
+					user = args[1]
+				}
+				result = runSearchByLabelAndUser(credentials, label, user)
 			}
-		} else { // Search by command args
-			var label, user string
-			label = args[0]
-			if len(args) > 1 {
-				user = args[1]
-			}
-			result = runSearchByLabelAndUser(credentials, label, user)
-		}
-		
-		return runSearch(result)
-	},
+
+			return runSearch(cmd, ctx, result)
+		},
+	}
+	return searchCmd
 }
 
-func init() {
-	rootCmd.AddCommand(searchCmd)
-}
-
-func runSearch(result *search.SearchResult) error {
+func runSearch(_ *cobra.Command, ctx *app.Context, result *search.SearchResult) error {
 	if result == nil {
-		logger.Warn("%s", constants.ErrCredentialMatchNotFound.Error())
-		logger.Info(constants.MsgListCredentialWithList)
+		ui.Warn("%s", constants.ErrCredentialMatchNotFound.Error())
+		ui.Info(constants.MsgHintListCredentials)
 		return nil
 	}
 
-	logger.Debug("result score %f", result.Score)
-	logger.Info("found credential - %s (%s)", result.Credential.Label, result.Credential.User)
+	slog.Debug("best match", "score", result.Score)
+	ui.Info("found credential - %s (%s)", result.Credential.Label, result.Credential.User)
 
 	// get password from user
 	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
-		logger.Error("%s", constants.ErrFailedToReadInput.Error())
+		ui.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
 
 	// decrypt secret using master password
-	secret, err := vault.DecryptCredential(&result.Credential, password)
+	secret, err := ctx.Vault.DecryptCredential(&result.Credential, password)
 	if err != nil {
-		logger.Debug("runSearch:failed to decrypt credential")
 		return err
 	}
-	
-	ui.CopyToClipboard([]byte(secret))
-	logger.Info(constants.MsgCopiedCredential)
-	
+
+	ui.CopyToClipboard(secret)
+	ui.Info(constants.MsgCredentialCopiedToClipboard)
+
 	// increment access count by 1 on successful search
-	store.UpdateCredentialAccessCount(result.Credential.Id, 1, time.Now())
+	ctx.Store.UpdateCredentialAccessCount(result.Credential.Id, 1, time.Now())
 	return nil
 }
 
@@ -95,13 +121,12 @@ func runSearchByLabelAndUser(credentials []model.Credential, queryLabel, queryUs
 
 func runInteractiveSearch(credentials []model.Credential) (*search.SearchResult, error) {
 	result, err := ui.InteractiveSearch(
-		constants.MsgCredentialSearch,
-		func (query string) []search.SearchResult {
+		constants.MsgSearchCredential,
+		func(query string) []search.SearchResult {
 			return searchCredentialsFromList(query, credentials)
 		},
 	)
 	if err != nil {
-		logger.Debug("runInteractiveSearch:failed run interactive search:%s", err.Error())
 		return nil, err
 	}
 

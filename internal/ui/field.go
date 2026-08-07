@@ -2,12 +2,16 @@ package ui
 
 import (
 	"bufio"
+	"crypto/subtle"
 	"fmt"
+	"log/slog"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 
-	"git.plutolab.org/plutolab/kosh/internal/logger"
+	"git.plutolab.org/plutolab/kosh/internal/constants"
 	"golang.org/x/term"
 )
 
@@ -17,7 +21,7 @@ const (
 
 // ReadStringField prompts the user and reads input from the standard input
 func ReadStringField(prompt string) (string, error) {
-	logger.Prompt("%s", prompt)
+	Prompt("%s", prompt)
 	reader := bufio.NewReader(os.Stdin)
 	data, err := reader.ReadString('\n')
 	if err != nil {
@@ -31,7 +35,7 @@ func ReadStringFieldWithRetry(prompt string) string {
 	for range INPUT_MAX_RETRY {
 		data, err := ReadStringField(prompt)
 		if err != nil {
-			logger.Error("failed to read input: %v", err)
+			Error("failed to read input: %v", err)
 			continue
 		}
 		return data
@@ -41,9 +45,44 @@ func ReadStringFieldWithRetry(prompt string) string {
 
 // ReadSecretField prompts the user and reads input without displaying entered characters
 func ReadSecretField(prompt string) ([]byte, error) {
-	logger.Prompt("%s", prompt)
-	data, err := term.ReadPassword(int(os.Stdin.Fd()))
-	fmt.Println() // newline after password input
+	Prompt("%s", prompt)
+
+	fd := int(os.Stdin.Fd())
+
+	// Snapshot of current healthy terminal state before reading
+	oldState, err := term.GetState(fd)
+	if err != nil {
+		return nil, err
+	}
+
+	// signal catcher for Ctrl+C
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	done := make(chan struct{})
+
+	go func() {
+		select {
+		case <-sigCh:
+			// If Ctrl+C is pressed restore the previous state of the terminal,
+			// print a new line and exit cleanly
+			term.Restore(fd, oldState)
+			fmt.Println()
+			os.Exit(130) // 130 is standard exit code for SIGINT
+		case <-done:
+			// If reading finishes normally, just exit the goroutine
+			return
+		}
+	}()
+
+	// Read the password
+	data, err := term.ReadPassword(fd)
+	fmt.Println()
+
+	// Cleanup signal handlers
+	close(done)
+	signal.Stop(sigCh)
+	close(sigCh)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to read password: %w", err)
 	}
@@ -55,12 +94,37 @@ func ReadSecretFieldWithRetry(prompt string) []byte {
 	for range INPUT_MAX_RETRY {
 		data, err := ReadSecretField(prompt)
 		if err != nil {
-			logger.Error("failed to read password: %v", err)
+			Error("failed to read password: %v", err)
 			continue
 		}
 		return data
 	}
 	return nil
+}
+
+// ReadSecretWithConfirmation gets password value from user from terminal. It gets password using silent text input and asks for
+// password confirmation by re-entering the password. It throws an error if both passwords do not match.
+func ReadSecretWithConfirmation(prompt, confirmPrompt string) ([]byte, error) {
+
+	password, err := ReadSecretField(prompt)
+	if err != nil {
+		slog.Debug("failed to read secret input field", "error", err)
+		return nil, constants.ErrFailedToReadInput
+	}
+
+	// Confirm entered password
+	confirm, err := ReadSecretField(confirmPrompt)
+	if err != nil {
+		slog.Debug("failed to read confirmation input field", "error", err)
+		return nil, constants.ErrFailedToReadInput
+	}
+
+	// compare both entries
+	if subtle.ConstantTimeCompare(password, confirm) == 0 {
+		return nil, constants.ErrPasswordDoesNotMatch
+	}
+
+	return password, nil
 }
 
 // GetOptionField prompts user with provided options
@@ -73,12 +137,12 @@ func GetOptionField(prompt string, options []string, defaultOption int) (int, er
 	}
 
 	// Display prompt
-	logger.Prompt("%s\n", prompt)
+	Prompt("%s\n", prompt)
 
 	// Display options
 	for i, option := range options {
 		if i == defaultOption {
-			fmt.Printf("  [%d] %s %s(default)%s\n", i+1, option, logger.ColorCyan, logger.ColorReset)
+			fmt.Printf("  [%d] %s %s(default)%s\n", i+1, option, ColorCyan, ColorReset)
 		} else {
 			fmt.Printf("  [%d] %s\n", i+1, option)
 		}
@@ -86,7 +150,7 @@ func GetOptionField(prompt string, options []string, defaultOption int) (int, er
 
 	// Get user input
 	fmt.Printf("%s[?]%s enter choice [1-%d] (default: %d): ",
-		logger.ColorCyan, logger.ColorReset, len(options), defaultOption+1)
+		ColorCyan, ColorReset, len(options), defaultOption+1)
 
 	reader := bufio.NewReader(os.Stdin)
 	input, err := reader.ReadString('\n')
@@ -120,7 +184,7 @@ func GetOptionFieldWithRetry(prompt string, options []string, defaultOption int)
 	for range INPUT_MAX_RETRY {
 		index, err := GetOptionField(prompt, options, defaultOption)
 		if err != nil {
-			logger.Error("%v", err)
+			Error("%v", err)
 			fmt.Println()
 			continue
 		}
@@ -131,7 +195,7 @@ func GetOptionFieldWithRetry(prompt string, options []string, defaultOption int)
 
 // ConfirmWithText prompts user to type exact confirmation text
 func ConfirmWithText(prompt, confirmationText string) (bool, error) {
-	logger.Warn("%s", prompt)
+	Warn("%s", prompt)
 	input, err := ReadStringField(fmt.Sprintf("enter '%s' to confirm or anything else to cancel: ", confirmationText))
 	if err != nil {
 		return false, err
@@ -144,7 +208,7 @@ func ConfirmWithTextRetry(prompt, confirmationText string) bool {
 	for range INPUT_MAX_RETRY {
 		confirmed, err := ConfirmWithText(prompt, confirmationText)
 		if err != nil {
-			logger.Error("failed to read input: %v", err)
+			Error("failed to read input: %v", err)
 			continue
 		}
 		return confirmed
@@ -161,7 +225,7 @@ func ConfirmYesNo(prompt string, defaultYes bool) (bool, error) {
 		suffix = "[y/N]"
 	}
 
-	logger.Prompt("%s %s: ", prompt, suffix)
+	Prompt("%s %s: ", prompt, suffix)
 
 	reader := bufio.NewReader(os.Stdin)
 	input, err := reader.ReadString('\n')
@@ -184,7 +248,7 @@ func ConfirmYesNoRetry(prompt string, defaultYes bool) bool {
 	for range INPUT_MAX_RETRY {
 		confirmed, err := ConfirmYesNo(prompt, defaultYes)
 		if err != nil {
-			logger.Error("failed to read input: %v", err)
+			Error("failed to read input: %v", err)
 			continue
 		}
 		return confirmed

@@ -1,45 +1,63 @@
 package cmd
 
 import (
-	"crypto/subtle"
-	"fmt"
-
+	"git.plutolab.org/plutolab/kosh/internal/app"
 	"git.plutolab.org/plutolab/kosh/internal/constants"
 	"git.plutolab.org/plutolab/kosh/internal/crypto"
-	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"git.plutolab.org/plutolab/kosh/internal/model"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"github.com/spf13/cobra"
 )
 
-var initCmd = &cobra.Command{
-	Use:   "init",
-	Short: "Initialize vault with password manager",
+func NewCmdInit(ctx *app.Context) *cobra.Command {
+	initCmd := &cobra.Command{
+		Use:   "init",
+		Short: "Initialize the vault for the active profile",
+		Long: `Initialize the vault of the active profile with a master password.
 
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return runInit()
-	},
-}
+You are prompted for a master password twice. The password itself is never
+stored: it is combined with a random salt to derive the key that encrypts the
+vault's private key, and re-derived every time you unlock the vault.
 
-func init() {
-	rootCmd.AddCommand(initCmd)
+Losing the master password permanently locks the vault - there is no recovery
+mechanism and no way to reset it.
+
+This command is safe to re-run: if the vault is already initialized it reports
+that and exits without touching any existing data. Each profile has its own
+vault and master password, but profiles made with "kosh profile create" are
+initialized as part of creating them, so this is only needed for the first
+profile.`,
+
+		Example: `  Initialize the active profile's vault:
+    kosh init`,
+
+		Args: cobra.ExactArgs(0),
+
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runInit(cmd, ctx)
+		},
+	}
+	return initCmd
 }
 
 // InitCmd sets up the vault, generates crypto information based on user's provided
 // master password
-func runInit() error {
+func runInit(_ *cobra.Command, ctx *app.Context) error {
 	// Check if vault is already initialized
-	initialized, err := store.IsVaultInitialized()
+	initialized, err := ctx.Store.IsVaultInitialized()
 	if err != nil {
-		logger.Error("%s", constants.ErrFailedToInitializeVault.Error())
+		ui.Error("%s", constants.ErrFailedToInitializeVault.Error())
 		return err
 	}
 	if initialized {
-		logger.Info(constants.MsgVaultAlreadyInitialized)
+		ui.Info(constants.MsgVaultAlreadyInitialized)
 		return nil
 	}
 
-	password, err := getPasswordWithConfirmation()
+	password, err := ui.ReadSecretWithConfirmation(
+		constants.MsgEnterMasterPassword,
+		constants.MsgConfirmMasterPassword,
+	)
 	if err != nil {
 		return err
 	}
@@ -48,7 +66,7 @@ func runInit() error {
 	salt := crypto.GenerateSalt()
 
 	// Derive unlock key
-	key := crypto.GenerateSymmetricKey([]byte(password), salt)
+	key := crypto.DeriveKey([]byte(password), salt)
 
 	// Generate ECC key pair
 	priv, pub := crypto.GenerateAsymmetricKeyPair()
@@ -67,36 +85,11 @@ func runInit() error {
 	}
 
 	// save info to the vault
-	err = store.InitializeVault(*vault.EncodeToString())
+	err = ctx.Store.InitializeVault(*vault.EncodeToString())
 	if err != nil {
-		logger.Error("%s", constants.ErrFailedToInitializeVault.Error())
+		ui.Error("%s", constants.ErrFailedToInitializeVault.Error())
 	} else {
-		logger.Info(constants.MsgVaultInitializedSuccessfully)
+		ui.Info(constants.MsgVaultInitialized)
 	}
 	return err
-}
-
-// getPasswordWithConfirmation gets password value from user from terminal. It gets password using silent text input and asks for
-// password confirmation by re-entering the password. It throws an error if both passwords do not match.
-func getPasswordWithConfirmation() ([]byte, error) {
-
-	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
-	if err != nil {
-		logger.Error("%s", constants.ErrFailedToReadInput.Error())
-		return nil, err
-	}
-
-	// Confirm entered password
-	confirm, err := ui.ReadSecretField(constants.MsgConfirmMasterPassword)
-	if err != nil {
-		logger.Error("%s", constants.ErrFailedToReadInput.Error())
-		return nil, err
-	}
-
-	// compare both entries
-	if subtle.ConstantTimeCompare(password, confirm) == 0 {
-		return nil, fmt.Errorf("%s", constants.ErrPasswordDoesNotMatch.Error())
-	}
-
-	return password, nil
 }

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"log/slog"
 	"time"
 
 	"git.plutolab.org/plutolab/kosh/internal/encoding"
@@ -33,6 +34,19 @@ func (c *Credential) GetRawData() *CredentialData {
 	}
 }
 
+func (c Credential) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.Int("Id", c.Id),
+		slog.String("Label", c.Label),
+		slog.String("User", c.User),
+		slog.Int("AccessCount", c.AccessCount),
+
+		slog.String("Secret", "[REDACTED]"),
+		slog.String("Ephemeral", "[REDACTED]"),
+		slog.String("Nonce", "[REDACTED]"),
+	)
+}
+
 type CredentialData struct {
 	Id        int
 	Label     string
@@ -40,6 +54,18 @@ type CredentialData struct {
 	Secret    []byte
 	Ephemeral []byte
 	Nonce     []byte
+}
+
+func (c CredentialData) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.Int("Id", c.Id),
+		slog.String("Label", c.Label),
+		slog.String("User", c.User),
+
+		slog.String("Secret", "[REDACTED]"),
+		slog.String("Ephemeral", "[REDACTED]"),
+		slog.String("Nonce", "[REDACTED]"),
+	)
 }
 
 func (c *CredentialData) EncodeToString() *Credential {
@@ -61,4 +87,16 @@ type CredentialSummary struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	AccessedAt  time.Time
+}
+
+func (c CredentialSummary) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.Int("Id", c.Id),
+		slog.String("Label", c.Label),
+		slog.String("User", c.User),
+		slog.Int("AccessCount", c.AccessCount),
+		slog.Time("CreatedAt", c.CreatedAt),
+		slog.Time("UpdatedAt", c.UpdatedAt),
+		slog.Time("AccessedAt", c.AccessedAt),
+	)
 }

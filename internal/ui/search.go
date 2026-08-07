@@ -7,17 +7,16 @@ import (
 	"os"
 
 	"git.plutolab.org/plutolab/kosh/internal/constants"
-	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"golang.org/x/term"
 )
 
 const (
-	ansiiEnter = 13
-	ansiiEscape = 27
-	ansiiControl = 3
-	ansiiBacksapce = 127
-	ansiiMoveUp = "\033[%dA"
-    ansiiClearBelow = "\033[J"
+	ansiiEnter      = 13
+	ansiiEscape     = 27
+	ansiiControl    = 3
+	ansiiBacksapce  = 127
+	ansiiMoveUp     = "\033[%dA"
+	ansiiClearBelow = "\033[J"
 )
 
 type Searchable interface {
@@ -60,8 +59,8 @@ func InteractiveSearch[T Searchable](
 		return zero, err
 	}
 	defer term.Restore(int(os.Stdin.Fd()), oldState)
-	
-	defer logger.Pause()()
+
+	defer PauseOutput()()
 
 	reader := bufio.NewReader(os.Stdin)
 	selectedIndex := 0
@@ -87,7 +86,7 @@ func InteractiveSearch[T Searchable](
 			buf.WriteString("\033[90m↑/↓ navigate · enter select · esc cancel\033[0m\033[K\r\n")
 			curLines++
 		}
-		
+
 		for i, item := range filtered {
 			if i == selectedIndex {
 				fmt.Fprintf(&buf, "> \033[32m%s\033[0m\033[K\r\n", item.Display())

@@ -2,34 +2,42 @@ package core
 
 import (
 	"crypto/sha256"
+	"log/slog"
 
 	"git.plutolab.org/plutolab/kosh/internal/constants"
 	"git.plutolab.org/plutolab/kosh/internal/crypto"
-	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"git.plutolab.org/plutolab/kosh/internal/model"
 	"git.plutolab.org/plutolab/kosh/internal/storage"
 	"golang.org/x/crypto/curve25519"
 )
 
-type VaultService struct {
+type KoshVault struct {
 	store storage.Store
 }
 
+type VaultService interface {
+	VerifyMasterPassword([]byte) error
+	AddCredential(string, string, []byte) error
+	DecryptCredential(*model.Credential, []byte) ([]byte, error)
+	UpdateCredentialSecret(int, []byte) error
+	ListCredentials(string, string) ([]model.CredentialSummary, error)
+}
+
 // NewVaultService creates a new service instance
-func NewVaultService(store storage.Store) *VaultService {
-	return &VaultService{store}
+func NewVaultService(store storage.Store) *KoshVault {
+	return &KoshVault{store}
 }
 
 // verifyMasterPassword checks if the provided master password can unlock the vault.
 // It returns an error if the password is incorrect or if the vault cannot be read.
-func (s *VaultService) VerifyMasterPassword(password []byte) error {
+func (s *KoshVault) VerifyMasterPassword(password []byte) error {
 	vault, err := s.store.GetVaultInfo()
 	if err != nil {
 		return constants.ErrFailedToFetchVaultInfo
 	}
 	vaultData := vault.GetRawData()
 
-	unlockKey := crypto.GenerateSymmetricKey(password, vaultData.Salt)
+	unlockKey := crypto.DeriveKey(password, vaultData.Salt)
 	if _, err := crypto.DecryptSecret(unlockKey, vaultData.Secret, vaultData.Nonce); err != nil {
 		return constants.ErrIncorrectMasterPassword
 	}
@@ -37,7 +45,7 @@ func (s *VaultService) VerifyMasterPassword(password []byte) error {
 	return nil
 }
 
-func (s *VaultService) AddCredential(label, user string, secret []byte) error {
+func (s *KoshVault) AddCredential(label, user string, secret []byte) error {
 	vaultInfo, err := s.store.GetVaultInfo()
 	if err != nil {
 		return err
@@ -74,22 +82,22 @@ func (s *VaultService) AddCredential(label, user string, secret []byte) error {
 	return nil
 }
 
-func (s *VaultService) DecryptCredential(credential *model.Credential, password []byte) (string, error) {
+func (s *KoshVault) DecryptCredential(credential *model.Credential, password []byte) ([]byte, error) {
 	vaultInfo, err := s.store.GetVaultInfo()
 	if err != nil {
-		logger.Debug("decryptCredential:failed to get vault info")
-		return "", err
+		return nil, err
 	}
 	vaultData := vaultInfo.GetRawData()
 
 	// Derive unlock key
-	unlockKey := crypto.GenerateSymmetricKey(password, vaultData.Salt)
+	unlockKey := crypto.DeriveKey(password, vaultData.Salt)
 
 	// Decrypt vault private key
 	vaultPrivateKey, err := crypto.DecryptSecret(unlockKey, vaultData.Secret, vaultData.Nonce)
 	if err != nil {
-		logger.Debug("decryptCredential:failed to get private key from vault")
-		return "", constants.ErrFailedToDecryptCredential
+		// the cause is replaced below, so this is the only record of it
+		slog.Debug("failed to unwrap vault private key", "error", err)
+		return nil, constants.ErrFailedToDecryptCredential
 	}
 
 	// Generate shared secret
@@ -101,14 +109,14 @@ func (s *VaultService) DecryptCredential(credential *model.Credential, password 
 
 	plainText, err := crypto.DecryptSecret(key[:], credData.Secret, credData.Nonce)
 	if err != nil {
-		return "", constants.ErrFailedToDecryptCredential
+		return nil, constants.ErrFailedToDecryptCredential
 	}
 
-	return string(plainText), nil
+	return plainText, nil
 }
 
 // UpdateCredentialSecret encrypts a new secret for an existing credential and saves it.
-func (s *VaultService) UpdateCredentialSecret(id int, newSecret []byte) error {
+func (s *KoshVault) UpdateCredentialSecret(id int, newSecret []byte) error {
 	vaultInfo, err := s.store.GetVaultInfo()
 	if err != nil {
 		return constants.ErrFailedToFetchVaultInfo
@@ -137,4 +145,17 @@ func (s *VaultService) UpdateCredentialSecret(id int, newSecret []byte) error {
 	}
 
 	return s.store.UpdateCredential(updatedCredential.EncodeToString())
+}
+
+func (s *KoshVault) ListCredentials(label, user string) ([]model.CredentialSummary, error) {
+	if _, err := s.store.GetVaultInfo(); err != nil {
+		return nil, err
+	}
+
+	credentials, err := s.store.SearchCredentialByLabelOrUser(label, user)
+	if err != nil {
+		return nil, err
+	}
+
+	return credentials, nil
 }

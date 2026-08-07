@@ -2,12 +2,12 @@ package search
 
 import (
 	"fmt"
+	"log/slog"
 	"math"
 	"sort"
 	"strings"
 	"time"
 
-	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"git.plutolab.org/plutolab/kosh/internal/model"
 )
 
@@ -47,7 +47,7 @@ func search(queryLabel, queryUser string, credentials []model.Credential, thresh
 	timeSearchStart := time.Now()
 	results := make([]SearchResult, 0, len(credentials))
 
-	logger.Debug("query %s %s", queryLabel, queryUser)
+	slog.Debug("search query", "label", queryLabel, "user", queryUser)
 	for _, c := range credentials {
 		score := ScoreQuery(
 			queryLabel,
@@ -82,7 +82,7 @@ func search(queryLabel, queryUser string, credentials []model.Credential, thresh
 	})
 
 	timeSearchElapsed := time.Since(timeSearchStart)
-	logger.Debug("time for search %s", timeSearchElapsed.String())
+	slog.Debug("search complete", "elapsed", timeSearchElapsed, "results", len(results))
 
 	return results
 }

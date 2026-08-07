@@ -3,11 +3,11 @@ package storage
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
 	"git.plutolab.org/plutolab/kosh/internal/constants"
-	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"git.plutolab.org/plutolab/kosh/internal/model"
 )
 
@@ -21,12 +21,8 @@ func (v *VaultStore) GetCredentialById(id int) (*model.Credential, error) {
 	err := v.db.QueryRow(query, id).Scan(&credential.Id, &credential.Label, &credential.User, &credential.Secret, &credential.Ephemeral, &credential.Nonce)
 
 	if err == sql.ErrNoRows {
-		logger.Debug("no matching credential found")
-		return nil, err
-	}
-
-	if err != nil {
-		logger.Error("unable to fetch credential")
+		return nil, constants.ErrCredentialNotFound
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -43,12 +39,8 @@ func (v *VaultStore) GetCredentialByLabelAndUser(label, user string) (*model.Cre
 	err := v.db.QueryRow(query, label, user).Scan(&credential.Id, &credential.Label, &credential.User, &credential.Secret, &credential.Ephemeral, &credential.Nonce)
 
 	if err == sql.ErrNoRows {
-		logger.Debug("no matching credential found")
-		return nil, err
-	}
-
-	if err != nil {
-		logger.Error("unable to fetch credential")
+		return nil, constants.ErrCredentialNotFound
+	} else if err != nil {
 		return nil, err
 	}
 
@@ -68,15 +60,12 @@ func (v *VaultStore) AddCredential(credential *model.Credential) error {
 
 	stmt, err := v.db.Prepare(query)
 	if err != nil {
-		logger.Error("error preparing statement")
 		return err
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec(credential.Label, credential.User, credential.Secret, credential.Ephemeral, credential.Nonce)
 	if err != nil {
-		logger.Error("error inserting credential")
-		logger.Debug("addCredential:failed to execute statement: %s", err.Error())
 		return err
 	}
 
@@ -115,7 +104,7 @@ func (v *VaultStore) UpdateCredential(credential *model.Credential) error {
 	}
 
 	if len(sets) == 0 {
-		logger.Debug("updateCredential:no fields to update");
+		slog.Debug("updateCredential:no fields to update")
 		return nil
 	}
 
@@ -129,7 +118,6 @@ func (v *VaultStore) UpdateCredential(credential *model.Credential) error {
 
 	_, err := v.db.Exec(query, values...)
 	if err != nil {
-		logger.Debug("update credential query: %v", err)
 		return err
 	}
 	return nil
@@ -138,7 +126,7 @@ func (v *VaultStore) UpdateCredential(credential *model.Credential) error {
 func (v *VaultStore) SearchCredentialByLabelOrUser(label, user string) ([]model.CredentialSummary, error) {
 	query := `
 		SELECT id, label, user, access_count, created_at, updated_at, accessed_at FROM credentials
-		WHERE TRUE 
+		WHERE TRUE
 	`
 
 	params := []any{}
@@ -155,7 +143,6 @@ func (v *VaultStore) SearchCredentialByLabelOrUser(label, user string) ([]model.
 
 	rows, err := v.db.Query(query, params...)
 	if err != nil {
-		logger.Debug("failed to fetch list of saved credentials")
 		return nil, err
 	}
 	defer rows.Close()
@@ -174,25 +161,21 @@ func (v *VaultStore) SearchCredentialByLabelOrUser(label, user string) ([]model.
 			&updatedAtStr,
 			&accessedAtStr,
 		); err != nil {
-			logger.Debug("unable to scan row")
 			return nil, err
 		}
 
 		credential.CreatedAt, err = time.Parse(time.RFC3339, createdAtStr)
 		if err != nil {
-			logger.Debug("unable to parse created at time: %s", createdAtStr)
 			return nil, err
 		}
 
 		credential.UpdatedAt, err = time.Parse(time.RFC3339, updatedAtStr)
 		if err != nil {
-			logger.Debug("unable to parse updated at time: %s", updatedAtStr)
 			return nil, err
 		}
 
 		credential.AccessedAt, err = time.Parse(time.RFC3339, accessedAtStr)
 		if err != nil {
-			logger.Debug("unable to parse updated at time: %s", accessedAtStr)
 			return nil, err
 		}
 
@@ -200,7 +183,6 @@ func (v *VaultStore) SearchCredentialByLabelOrUser(label, user string) ([]model.
 	}
 
 	if rows.Err() != nil {
-		logger.Debug("error iterating over rows")
 		return nil, rows.Err()
 	}
 
@@ -212,12 +194,10 @@ func (v *VaultStore) DeleteCredentialById(id int) error {
 	query := `DELETE FROM credentials WHERE id = ?`
 	result, err := v.db.Exec(query, id)
 	if err != nil {
-		logger.Debug("unable to delete credential")
 		return err
 	}
 	if affectedRows, _ := result.RowsAffected(); affectedRows != 1 {
-		logger.Error("invalid credential id %d", id)
-		return fmt.Errorf("no rows affected")
+		return fmt.Errorf("no rows affected for credential id %d", id)
 	}
 	return nil
 }
@@ -226,7 +206,6 @@ func (v *VaultStore) GetAllCredentials() ([]model.Credential, error) {
 	query := `SELECT id, label, user, access_count, secret, ephemeral, nonce, accessed_at FROM credentials`
 	rows, err := v.db.Query(query)
 	if err != nil {
-		logger.Debug("error fetching all credentials from database")
 		return nil, err
 	}
 	defer rows.Close()
@@ -245,13 +224,11 @@ func (v *VaultStore) GetAllCredentials() ([]model.Credential, error) {
 			&credential.Nonce,
 			&accessedAtStr,
 		); err != nil {
-			logger.Debug("unable to scan credential")
 			return nil, err
 		}
 
 		credential.AccessedAt, err = time.Parse(time.RFC3339, accessedAtStr)
 		if err != nil {
-			logger.Debug("unable to parse time string %s", accessedAtStr)
 			return nil, err
 		}
 
@@ -259,7 +236,6 @@ func (v *VaultStore) GetAllCredentials() ([]model.Credential, error) {
 	}
 
 	if rows.Err() != nil {
-		logger.Debug("error iterating over rows")
 		return nil, rows.Err()
 	}
 
@@ -270,7 +246,8 @@ func (v *VaultStore) UpdateCredentialAccessCount(id, delta int, accessTime time.
 	query := `UPDATE credentials SET access_count = access_count + ?, accessed_at = ? WHERE id = ?`
 	_, err := v.db.Exec(query, delta, accessTime, id)
 	if err != nil {
-		logger.Debug("unable to update credential access info : %d at %s", id, accessTime)
+		// error is deliberately not propagated, so this is the only record of it
+		slog.Debug("unable to update credential access info", "id", id, "accessTime", accessTime, "error", err)
 	}
 
 	if constants.AccessCountResetThreshold > 0 {
@@ -279,12 +256,11 @@ func (v *VaultStore) UpdateCredentialAccessCount(id, delta int, accessTime time.
 		result := v.db.QueryRow(query, id)
 		result.Scan(&accessCount)
 		if err := result.Err(); err != nil {
-			logger.Debug("unable to get existing access count for id %d", id)
 			return err
 		}
 
 		if accessCount > constants.AccessCountResetThreshold {
-			logger.Debug("access count baseline reset triggered")
+			slog.Debug("access count baseline reset triggered")
 			// reset access count base-line to prevent a single credentials from dominating
 			// the search un-fairly.
 			err := v.resetAccessCountBaseline()
@@ -303,7 +279,6 @@ func (v *VaultStore) resetAccessCountBaseline() error {
 	query := `UPDATE credentials SET access_count = MAX(access_count - ?, 0)`
 	_, err := v.db.Exec(query, constants.AccessCountResetThreshold)
 	if err != nil {
-		logger.Debug("failed to update access count baseline")
 		return err
 	}
 	return nil

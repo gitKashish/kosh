@@ -233,13 +233,19 @@ Results with equal scores are sorted by:
 
 `Debug` calls are no-ops in production builds. Enable them by setting `BuildMode=debug` at link time:
 
-```sh
-go build -ldflags="-X git.plutolab.org/plutolab/kosh/internal/logger.BuildMode=debug"
+```
+# Bash
+KOSH_DEBUG=1 go build"
+```
+
+```powershell
+# Powershell
+$env:KOSH_DEBUG=1 go build
 ```
 
 Debug output includes the file and line number of the caller.
 
-`logger.Pause()` silences all output temporarily. It is used by the interactive search TUI to prevent log lines from corrupting the raw-mode terminal display.
+`ui.PauseOutput()` silences all output temporarily. It is used by the interactive search TUI to prevent log lines from corrupting the raw-mode terminal display.
 
 ---
 
@@ -262,7 +268,6 @@ Releases are built with [goreleaser](https://goreleaser.com) using `.goreleaser.
 
 ```
 -X git.plutolab.org/plutolab/kosh/cmd.AppVersion={{.Version}}
--X git.plutolab.org/plutolab/kosh/internal/logger.BuildMode=production
 ```
 
 `CGO_ENABLED=0` is set so the binary is fully static (the SQLite driver is pure Go via `modernc.org/sqlite`).

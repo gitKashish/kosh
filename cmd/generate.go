@@ -3,13 +3,14 @@ package cmd
 import (
 	"crypto/rand"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"slices"
 	"strconv"
 	"strings"
 
+	"git.plutolab.org/plutolab/kosh/internal/app"
 	"git.plutolab.org/plutolab/kosh/internal/constants"
-	"git.plutolab.org/plutolab/kosh/internal/logger"
 	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -17,15 +18,15 @@ import (
 type CharGroup string
 type RequireConfig map[CharGroup]int
 
-var (
-	genLength  int
-	genUpper   bool
-	genLower   bool
-	genDigit   bool
-	genSymbol  bool
-	genRequire string
-	genNoSave  bool
-)
+type generateOptions struct {
+	length  int
+	upper   bool
+	lower   bool
+	digit   bool
+	symbol  bool
+	require string
+	noSave  bool
+}
 
 const (
 	LowerCharGroup  = "lower"
@@ -34,50 +35,73 @@ const (
 	SymbolCharGroup = "symbol"
 )
 
-var generateCmd = &cobra.Command{
-	Use:   "generate <label> <user>",
-	Short: "Generate a strong password with specified restrictions",
-	Long: `Generate a strong random password and store it securely in the vault.
-The generated password is encrypted and copied to the clipboard.`,
+func NewCmdGenerate(ctx *app.Context) *cobra.Command {
+	opts := &generateOptions{}
 
-	Example: `	Generate a default password:
-	kosh generate github alice
+	generateCmd := &cobra.Command{
+		Use:   "generate [label] [user]",
+		Short: "Generate a strong random password and store it",
+		Long: `Generate a cryptographically random password and save it as a credential.
 
-	Generate a 32-character password with strict requirements:
-    	kosh generate -l 32 --require "upper=2,lower=10,digit=5,symbol=3" email alice
+Both a label and a user are required, and the generated secret is encrypted into
+the active profile's vault after the master password is verified. Pass --no-save
+to only generate a password: it is copied to the clipboard, nothing is written to
+the vault, and the label and user arguments can be omitted.
 
-	Generate a password without symbols:
-    	kosh generate --symbol=false server root`,
+The character pool is controlled by --upper, --lower, --digit and --symbol, each
+enabled by default and disabled with "--flag=false". Use --require to demand a
+minimum count from a group, for example "upper=2,digit=3"; requiring characters
+from a group that has been disabled is rejected. If the required counts add up to
+more than --length, kosh asks whether to grow the password to fit them.
 
-	Args: cobra.RangeArgs(0, 2),
+Saving a password does not print it. Retrieve it later with "kosh get" or
+"kosh search".`,
 
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 2 && !genNoSave {
-			logger.Error("%s", constants.ErrInvalidArguments.Error())
-			return fmt.Errorf("wrong arguments got %d, want 2 (unless --no-save is used)", len(args))
-		}
+		Example: `  Generate and save a default 20-character password:
+    kosh generate github alice
 
-		return runGenerate(args...)
-	},
+  Generate a 32-character password with strict requirements:
+    kosh generate -l 32 --require "upper=2,lower=10,digit=5,symbol=3" email alice
+
+  Generate a password without symbols:
+    kosh generate --symbol=false server root
+
+  Copy a throwaway password to the clipboard without saving it:
+    kosh generate --no-save`,
+
+		Args: cobra.RangeArgs(0, 2),
+
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) < 2 && !opts.noSave {
+				ui.Error("%s", constants.ErrInvalidArguments.Error())
+				return fmt.Errorf("wrong arguments got %d, want 2 (unless --no-save is used)", len(args))
+			}
+
+			var label, user string
+			if len(args) >= 2 {
+				label = args[0]
+				user = args[1]
+			}
+			return runGenerate(cmd, ctx, opts, label, user)
+		},
+	}
+
+	generateCmd.Flags().IntVarP(&opts.length, "length", "l", 20, "length of the password")
+	generateCmd.Flags().BoolVar(&opts.upper, "upper", true, "include uppercase letters")
+	generateCmd.Flags().BoolVar(&opts.lower, "lower", true, "include lowercase letters")
+	generateCmd.Flags().BoolVar(&opts.digit, "digit", true, "include digits")
+	generateCmd.Flags().BoolVar(&opts.symbol, "symbol", true, "include special symbols")
+	generateCmd.Flags().StringVarP(&opts.require, "require", "r", "", "password requirements (e.g., upper=2,digit=3)")
+	generateCmd.Flags().BoolVarP(&opts.noSave, "no-save", "n", false, "generate password but do not save it")
+
+	return generateCmd
 }
 
-func init() {
-	generateCmd.Flags().IntVarP(&genLength, "length", "l", 20, "length of the password")
-	generateCmd.Flags().BoolVar(&genUpper, "upper", true, "include uppercase letters")
-	generateCmd.Flags().BoolVar(&genLower, "lower", true, "include uppercase letters")
-	generateCmd.Flags().BoolVar(&genDigit, "digit", true, "include digits")
-	generateCmd.Flags().BoolVar(&genSymbol, "symbol", true, "include special symbols")
-	generateCmd.Flags().StringVarP(&genRequire, "require", "r", "", "password requirements (e.g., upper=2,digit=3)")
-	generateCmd.Flags().BoolVarP(&genNoSave, "no-save", "n", false, "generate password but do not save it")
+func runGenerate(_ *cobra.Command, ctx *app.Context, opts *generateOptions, label, user string) error {
 
-	rootCmd.AddCommand(generateCmd)
-}
-
-func runGenerate(args ...string) error {
-
-	requirement, err := parseRequirement(genUpper, genLower, genDigit, genSymbol, genRequire)
+	requirement, err := parseRequirement(opts.upper, opts.lower, opts.digit, opts.symbol, opts.require)
 	if err != nil {
-		logger.Error("invalid `require` flag values")
+		ui.Error("invalid `require` flag values")
 		return err
 	}
 
@@ -94,55 +118,51 @@ func runGenerate(args ...string) error {
 		}
 	}
 
-	if requiredLength > genLength {
-		logger.Warn("required length (%d characters) is greater than password length (%d characters)", requiredLength, genLength)
+	if requiredLength > opts.length {
+		ui.Warn("required length (%d characters) is greater than password length (%d characters)", requiredLength, opts.length)
 		confirm, err := ui.ConfirmYesNo(
 			"generate password with the required length?",
 			false,
 		)
 
 		if err != nil {
-			logger.Error("%s", err.Error())
+			ui.Error("%s", err.Error())
 			return err
 		}
 
 		if !confirm {
-			logger.Info(constants.MsgOperationAborted)
+			ui.Info(constants.MsgOperationAborted)
 			return nil
 		}
 
-		genLength = requiredLength
+		opts.length = requiredLength
 	}
 
-	generatedSecret, err := generatePassword(genLength, genUpper, genLower, genDigit, genSymbol, requirement)
+	generatedSecret, err := generatePassword(opts.length, opts.upper, opts.lower, opts.digit, opts.symbol, requirement)
 	if err != nil {
-		logger.Error("unable to generate credential")
+		ui.Error("unable to generate credential")
 		return err
 	}
 
 	// In case `--no-save` copy the password to clipboard, no need to fetch vault data or verify password
-	if genNoSave {
+	if opts.noSave {
 		ui.CopyToClipboard(generatedSecret)
-		logger.Info("%s", constants.MsgCopiedCredential)
+		ui.Info(constants.MsgCredentialCopiedToClipboard)
 		return nil
 	}
 
-	label := args[0]
-	user := args[1]
-
 	password, err := ui.ReadSecretField(constants.MsgEnterMasterPassword)
 	if err != nil {
-		logger.Error("%s", constants.ErrFailedToReadInput.Error())
+		ui.Error("%s", constants.ErrFailedToReadInput.Error())
 		return err
 	}
-	if err := vault.VerifyMasterPassword(password); err != nil {
-		logger.Error("%s", constants.ErrIncorrectMasterPassword.Error())
+	if err := ctx.Vault.VerifyMasterPassword(password); err != nil {
+		ui.Error("%s", constants.ErrIncorrectMasterPassword.Error())
 		return err
 	}
 
-	err = vault.AddCredential(label, user, generatedSecret)
+	err = ctx.Vault.AddCredential(label, user, generatedSecret)
 	if err != nil {
-		logger.Debug("runGenerate:failed to add generated credential:%s", err.Error())
 		return err
 	}
 
@@ -160,7 +180,7 @@ func parseRequirement(upper, lower, digit, symbol bool, requireStr string) (Requ
 	for _, param := range requireList {
 		fields := strings.Split(param, "=")
 		if len(fields) != 2 {
-			logger.Error("invalid requirement field %s", param)
+			slog.Debug("invalid requirement field", "param", param)
 			return nil, fmt.Errorf("invalid requirement field %s", param)
 		}
 		group := CharGroup(strings.TrimSpace(fields[0]))
@@ -168,7 +188,7 @@ func parseRequirement(upper, lower, digit, symbol bool, requireStr string) (Requ
 
 		val, err := strconv.Atoi(str)
 		if err != nil || val < 0 {
-			logger.Error("invalid requirement count %s", str)
+			slog.Debug("invalid requirement count", "count", str)
 			return nil, fmt.Errorf("invalid requirement count %s", str)
 		}
 
@@ -193,14 +213,14 @@ func parseRequirement(upper, lower, digit, symbol bool, requireStr string) (Requ
 		}
 
 		if errMsg != "" {
-			logger.Error("contradicting requirement, %s", errMsg)
+			slog.Debug("contradicting requirement", "contradiction", errMsg)
 			return nil, fmt.Errorf("%s", errMsg)
 		}
 
 		requirement[group] = val
 	}
 
-	logger.Debug("final requirement %v", requirement)
+	slog.Debug("final requirement", "req", requirement)
 
 	return requirement, nil
 }

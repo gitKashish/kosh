@@ -2,11 +2,13 @@ package storage
 
 import (
 	"database/sql"
+	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
 
-	"git.plutolab.org/plutolab/kosh/internal/logger"
+	"git.plutolab.org/plutolab/kosh/internal/config"
 	"git.plutolab.org/plutolab/kosh/internal/model"
 	_ "modernc.org/sqlite"
 )
@@ -36,27 +38,26 @@ type VaultStore struct {
 }
 
 // InitializeStore establishes connection with database
-func InitializeStore() (Store, error) {
+func InitializeStore(cfg *config.Config) (Store, error) {
 	userDir, err := os.UserHomeDir()
 	if err != nil {
-		logger.Error("failed to get user home directory")
 		return nil, err
 	}
 
-	koshDir := filepath.Join(userDir, ".kosh")
-
-	// Create directory if it is not present
-	if err := os.MkdirAll(koshDir, 0700); err != nil {
-		logger.Error("failed to create .kosh directory")
-		return nil, err
+	profilesPath := filepath.Join(userDir, ".kosh", "profiles")
+	if err := os.MkdirAll(profilesPath, 0700); err != nil {
+		return nil, fmt.Errorf("create profile directory %s: %w", profilesPath, err)
 	}
 
-	dbFilePath := filepath.Join(koshDir, "kosh.db")
+	dbFilePath := filepath.Join(
+		profilesPath,
+		fmt.Sprintf("%s.db", cfg.ActiveProfile),
+	)
 
 	db, err := sql.Open("sqlite", dbFilePath)
 
 	if err != nil {
-		logger.Error("failed to connect to database")
+		return nil, fmt.Errorf("open vault %s: %w", dbFilePath, err)
 	}
 
 	// Set pragmas for this connection
@@ -64,14 +65,22 @@ func InitializeStore() (Store, error) {
 		return nil, err
 	}
 
-	return &VaultStore{db}, nil
+	vault := &VaultStore{db}
+	if err := vault.RunMigrations(); err != nil {
+		return nil, err
+	}
+
+	slog.Debug("store intialized", "store", vault)
+
+	return vault, nil
 }
 
 // CloseStore closes existing connection to the database
 func (v *VaultStore) CloseStore() error {
 	if v != nil {
 		if err := v.db.Close(); err != nil {
-			logger.Error("failed to close database connection")
+			// callers discard this error, so this is the only record of it
+			slog.Debug("failed to close database connection", "error", err)
 			return err
 		}
 	}
@@ -87,7 +96,6 @@ func initDatabase(db *sql.DB) error {
 				PRAGMA trusted_schema=OFF;`
 
 	if _, err := db.Exec(pragma); err != nil {
-		logger.Debug("failed to run pragmas")
 		return err
 	}
 	return nil

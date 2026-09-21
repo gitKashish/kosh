@@ -53,4 +53,7 @@ var (
 	// Flow control: the user backed out rather than anything going wrong.
 	ErrSearchCancelled  = errors.New("search cancelled")
 	ErrOperationAborted = errors.New("operation aborted")
+
+	// Clipboard.
+	ErrFailedToCopyToClipboard = errors.New("failed to copy to clipboard")
 )

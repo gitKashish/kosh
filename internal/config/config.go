@@ -8,11 +8,13 @@ import (
 )
 
 type Config struct {
-	ActiveProfile string `json:"active_profile"`
+	ActiveProfile      string `json:"active_profile"`
+	SecretClearTimeout int    `json:"secret_clear_timeout"`
 }
 
 var defaultCfg = Config{
-	ActiveProfile: "default",
+	ActiveProfile:      "default",
+	SecretClearTimeout: 30,
 }
 
 func getConfigPath() (string, error) {
@@ -76,13 +78,16 @@ func Load() (*Config, error) {
 		return &cfg, nil
 	}
 
-	// Load existing config
+	// Load existing config. Unmarshalling onto a copy of the defaults, rather
+	// than a zero-value Config, means a field added after some users already
+	// have a config file on disk (e.g. SecretClearTimeout) keeps its intended
+	// default instead of silently becoming 0/"" for them.
 	file, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, err
 	}
 
-	var cfg Config
+	cfg := defaultCfg
 	if err := json.Unmarshal(file, &cfg); err != nil {
 		return nil, err
 	}

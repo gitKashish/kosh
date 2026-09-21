@@ -16,6 +16,7 @@ import (
 )
 
 type CharGroup string
+
 type RequireConfig map[CharGroup]int
 
 type generateOptions struct {
@@ -146,7 +147,10 @@ func runGenerate(_ *cobra.Command, ctx *app.Context, opts *generateOptions, labe
 
 	// In case `--no-save` copy the password to clipboard, no need to fetch vault data or verify password
 	if opts.noSave {
-		ui.CopyToClipboard(generatedSecret)
+		if err := ui.CopyToClipboard(generatedSecret, true); err != nil {
+			ui.Error("%s", constants.ErrFailedToCopyToClipboard.Error())
+			return err
+		}
 		ui.Info(constants.MsgCredentialCopiedToClipboard)
 		return nil
 	}

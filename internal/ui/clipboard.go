@@ -1,17 +1,24 @@
 package ui
 
 import (
+	"context"
 	"log/slog"
+	"os"
 
-	"golang.design/x/clipboard"
+	"plutolab.org/klip"
 )
 
-func CopyToClipboard(content []byte) {
-	err := clipboard.Init()
-	if err != nil {
-		slog.Debug("error initializing clipboard", "error", err)
-		return
+func CopyToClipboard(content []byte, autoClear bool) error {
+	clipboard := klip.NewClipboard()
+	opts := klip.WriteOptions{
+		Secret: true,
 	}
-
-	clipboard.Write(clipboard.FmtText, content)
+	if err := clipboard.Write(context.Background(), content, opts); err != nil {
+		slog.Debug("failed to write to clipboard", "error", err.Error())
+		return err
+	}
+	if autoClear {
+		return klip.LaunchDetached(os.Args[0], []string{"__clipd"}, content)
+	}
+	return nil
 }

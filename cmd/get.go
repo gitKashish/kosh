@@ -65,7 +65,10 @@ func runGet(_ *cobra.Command, ctx *app.Context, desiredGroup string, desiredUser
 		return err
 	}
 
-	ui.CopyToClipboard(secret)
+	if err := ui.CopyToClipboard(secret, true); err != nil {
+		ui.Error("%s", constants.ErrFailedToCopyToClipboard.Error())
+		return err
+	}
 	ui.Info(constants.MsgCredentialCopiedToClipboard)
 
 	// on successful access update the access info for the credential,

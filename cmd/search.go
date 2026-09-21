@@ -102,7 +102,10 @@ func runSearch(_ *cobra.Command, ctx *app.Context, result *search.SearchResult) 
 		return err
 	}
 
-	ui.CopyToClipboard(secret)
+	if err := ui.CopyToClipboard(secret, true); err != nil {
+		ui.Error("%s", constants.ErrFailedToCopyToClipboard.Error())
+		return err
+	}
 	ui.Info(constants.MsgCredentialCopiedToClipboard)
 
 	// increment access count by 1 on successful search

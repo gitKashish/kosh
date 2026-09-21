@@ -117,6 +117,7 @@ Run "kosh init" once to create the vault before using any other command.`,
 
 	// Register children commands
 	rootCmd.AddCommand(
+		NewClipDCmd(appCtx),
 		NewCmdUse(appCtx),
 		NewCmdInit(appCtx),
 		NewCmdList(appCtx),

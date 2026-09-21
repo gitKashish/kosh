@@ -70,7 +70,7 @@ func InitializeStore(cfg *config.Config) (Store, error) {
 		return nil, err
 	}
 
-	slog.Debug("store intialized", "store", vault)
+	slog.Debug("store initialized", "store", vault)
 
 	return vault, nil
 }

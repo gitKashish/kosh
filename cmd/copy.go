@@ -114,7 +114,7 @@ func copyCredential(label, user string, secret []byte, targetProfile string) err
 	}
 	defer store.CloseStore()
 
-	// Verify that vault is intialized
+	// Verify that vault is initialized
 	initialized, err := store.IsVaultInitialized()
 	if err != nil {
 		slog.Debug("failed to check store initialization", "error", err)

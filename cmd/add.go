@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"git.plutolab.org/plutolab/kosh/internal/app"
-	"git.plutolab.org/plutolab/kosh/internal/constants"
-	"git.plutolab.org/plutolab/kosh/internal/ui"
+	"plutolab.org/kosh/internal/app"
+	"plutolab.org/kosh/internal/constants"
+	"plutolab.org/kosh/internal/ui"
 )
 
 func NewCmdAdd(ctx *app.Context) *cobra.Command {

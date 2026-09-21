@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"git.plutolab.org/plutolab/kosh/internal/app"
-	"git.plutolab.org/plutolab/kosh/internal/constants"
-	"git.plutolab.org/plutolab/kosh/internal/model"
-	"git.plutolab.org/plutolab/kosh/internal/search"
-	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"github.com/spf13/cobra"
+	"plutolab.org/kosh/internal/app"
+	"plutolab.org/kosh/internal/constants"
+	"plutolab.org/kosh/internal/model"
+	"plutolab.org/kosh/internal/search"
+	"plutolab.org/kosh/internal/ui"
 )
 
 func NewCmdSearch(ctx *app.Context) *cobra.Command {

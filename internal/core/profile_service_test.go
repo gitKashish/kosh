@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"git.plutolab.org/plutolab/kosh/internal/model"
+	"plutolab.org/kosh/internal/model"
 )
 
 func TestSanitizeProfileName(t *testing.T) {

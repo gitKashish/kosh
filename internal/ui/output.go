@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"git.plutolab.org/plutolab/kosh/internal/logger"
+	"plutolab.org/kosh/internal/logger"
 )
 
 const (

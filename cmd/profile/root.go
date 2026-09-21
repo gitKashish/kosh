@@ -1,8 +1,8 @@
 package profile
 
 import (
-	"git.plutolab.org/plutolab/kosh/internal/app"
 	"github.com/spf13/cobra"
+	"plutolab.org/kosh/internal/app"
 )
 
 func NewCmdProfile(ctx *app.Context) *cobra.Command {

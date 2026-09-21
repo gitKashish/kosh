@@ -6,9 +6,9 @@ import (
 	"os"
 	"time"
 
-	"git.plutolab.org/plutolab/kosh/internal/app"
 	"github.com/spf13/cobra"
 	"plutolab.org/klip"
+	"plutolab.org/kosh/internal/app"
 )
 
 func NewClipDCmd(ctx *app.Context) *cobra.Command {

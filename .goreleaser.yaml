@@ -23,7 +23,7 @@ builds:
     ldflags:
       - -s
       - -w
-      - -X=git.plutolab.org/plutolab/kosh/cmd.AppVersion={{.Version}}
+      - -X=plutolab.org/kosh/cmd.AppVersion={{.Version}}
 archives:
   - formats: [tar.gz]
     # this name template makes the OS and Arch compatible with the results of `uname`.
@@ -48,4 +48,3 @@ changelog:
 
 release:
   footer: >-
-

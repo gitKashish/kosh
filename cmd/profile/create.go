@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"log/slog"
 
-	"git.plutolab.org/plutolab/kosh/internal/app"
-	"git.plutolab.org/plutolab/kosh/internal/config"
-	"git.plutolab.org/plutolab/kosh/internal/constants"
-	"git.plutolab.org/plutolab/kosh/internal/core"
-	"git.plutolab.org/plutolab/kosh/internal/crypto"
-	"git.plutolab.org/plutolab/kosh/internal/model"
-	"git.plutolab.org/plutolab/kosh/internal/storage"
-	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"github.com/spf13/cobra"
+	"plutolab.org/kosh/internal/app"
+	"plutolab.org/kosh/internal/config"
+	"plutolab.org/kosh/internal/constants"
+	"plutolab.org/kosh/internal/core"
+	"plutolab.org/kosh/internal/crypto"
+	"plutolab.org/kosh/internal/model"
+	"plutolab.org/kosh/internal/storage"
+	"plutolab.org/kosh/internal/ui"
 )
 
 func NewCmdCreate(ctx *app.Context) *cobra.Command {

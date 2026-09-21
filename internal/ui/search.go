@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"git.plutolab.org/plutolab/kosh/internal/constants"
 	"golang.org/x/term"
+	"plutolab.org/kosh/internal/constants"
 )
 
 const (

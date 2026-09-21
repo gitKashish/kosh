@@ -4,11 +4,11 @@ import (
 	"crypto/sha256"
 	"log/slog"
 
-	"git.plutolab.org/plutolab/kosh/internal/constants"
-	"git.plutolab.org/plutolab/kosh/internal/crypto"
-	"git.plutolab.org/plutolab/kosh/internal/model"
-	"git.plutolab.org/plutolab/kosh/internal/storage"
 	"golang.org/x/crypto/curve25519"
+	"plutolab.org/kosh/internal/constants"
+	"plutolab.org/kosh/internal/crypto"
+	"plutolab.org/kosh/internal/model"
+	"plutolab.org/kosh/internal/storage"
 )
 
 type KoshVault struct {

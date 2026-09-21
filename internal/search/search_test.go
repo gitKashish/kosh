@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"git.plutolab.org/plutolab/kosh/internal/constants"
-	"git.plutolab.org/plutolab/kosh/internal/model"
+	"plutolab.org/kosh/internal/constants"
+	"plutolab.org/kosh/internal/model"
 )
 
 func TestDamerauLevenshtein(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"git.plutolab.org/plutolab/kosh/internal/model"
+	"plutolab.org/kosh/internal/model"
 )
 
 const (

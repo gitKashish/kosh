@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"git.plutolab.org/plutolab/kosh/internal/ui"
+	"plutolab.org/kosh/internal/ui"
 )
 
 // Fixed reference point for every case. Calling time.Now() separately for

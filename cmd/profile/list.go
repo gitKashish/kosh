@@ -3,10 +3,10 @@ package profile
 import (
 	"log/slog"
 
-	"git.plutolab.org/plutolab/kosh/internal/app"
-	"git.plutolab.org/plutolab/kosh/internal/model"
-	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"github.com/spf13/cobra"
+	"plutolab.org/kosh/internal/app"
+	"plutolab.org/kosh/internal/model"
+	"plutolab.org/kosh/internal/ui"
 )
 
 func NewCmdList(ctx *app.Context) *cobra.Command {

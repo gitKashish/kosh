@@ -8,12 +8,12 @@ import (
 	"regexp"
 	"strings"
 
-	"git.plutolab.org/plutolab/kosh/internal/config"
-	"git.plutolab.org/plutolab/kosh/internal/constants"
-	"git.plutolab.org/plutolab/kosh/internal/crypto"
-	"git.plutolab.org/plutolab/kosh/internal/encoding"
-	"git.plutolab.org/plutolab/kosh/internal/model"
-	"git.plutolab.org/plutolab/kosh/internal/ui"
+	"plutolab.org/kosh/internal/config"
+	"plutolab.org/kosh/internal/constants"
+	"plutolab.org/kosh/internal/crypto"
+	"plutolab.org/kosh/internal/encoding"
+	"plutolab.org/kosh/internal/model"
+	"plutolab.org/kosh/internal/ui"
 )
 
 type ProfileService interface {

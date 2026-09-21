@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"git.plutolab.org/plutolab/kosh/internal/model"
+	"plutolab.org/kosh/internal/model"
 )
 
 // IsVaultInitialized checks if vault exists and has a valid record in it

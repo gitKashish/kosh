@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"git.plutolab.org/plutolab/kosh/internal/constants"
-	"git.plutolab.org/plutolab/kosh/internal/model"
+	"plutolab.org/kosh/internal/constants"
+	"plutolab.org/kosh/internal/model"
 )
 
 func (v *VaultStore) GetCredentialById(id int) (*model.Credential, error) {

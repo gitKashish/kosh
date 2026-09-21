@@ -1,8 +1,8 @@
 package main
 
 import (
-	"git.plutolab.org/plutolab/kosh/cmd"
-	"git.plutolab.org/plutolab/kosh/internal/logger"
+	"plutolab.org/kosh/cmd"
+	"plutolab.org/kosh/internal/logger"
 )
 
 func main() {

@@ -4,10 +4,10 @@ import (
 	"database/sql"
 	"time"
 
-	"git.plutolab.org/plutolab/kosh/internal/app"
-	"git.plutolab.org/plutolab/kosh/internal/constants"
-	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"github.com/spf13/cobra"
+	"plutolab.org/kosh/internal/app"
+	"plutolab.org/kosh/internal/constants"
+	"plutolab.org/kosh/internal/ui"
 )
 
 func NewCmdGet(ctx *app.Context) *cobra.Command {

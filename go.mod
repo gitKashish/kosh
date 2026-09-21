@@ -1,4 +1,4 @@
-module git.plutolab.org/plutolab/kosh
+module plutolab.org/kosh
 
 go 1.27.1
 

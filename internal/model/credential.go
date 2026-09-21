@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"time"
 
-	"git.plutolab.org/plutolab/kosh/internal/encoding"
+	"plutolab.org/kosh/internal/encoding"
 )
 
 type Credential struct {

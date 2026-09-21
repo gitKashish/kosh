@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"git.plutolab.org/plutolab/kosh/internal/config"
-	"git.plutolab.org/plutolab/kosh/internal/model"
 	_ "modernc.org/sqlite"
+	"plutolab.org/kosh/internal/config"
+	"plutolab.org/kosh/internal/model"
 )
 
 type Store interface {

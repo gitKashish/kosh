@@ -8,13 +8,13 @@ import (
 	"runtime/debug"
 	"strings"
 
-	"git.plutolab.org/plutolab/kosh/cmd/profile"
-	"git.plutolab.org/plutolab/kosh/internal/app"
-	"git.plutolab.org/plutolab/kosh/internal/config"
-	"git.plutolab.org/plutolab/kosh/internal/core"
-	"git.plutolab.org/plutolab/kosh/internal/storage"
-	"git.plutolab.org/plutolab/kosh/internal/ui"
 	"github.com/spf13/cobra"
+	"plutolab.org/kosh/cmd/profile"
+	"plutolab.org/kosh/internal/app"
+	"plutolab.org/kosh/internal/config"
+	"plutolab.org/kosh/internal/core"
+	"plutolab.org/kosh/internal/storage"
+	"plutolab.org/kosh/internal/ui"
 )
 
 const (

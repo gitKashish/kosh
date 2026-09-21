@@ -267,7 +267,7 @@ The function is generic (`InteractiveSearch[T Searchable]`) and can be reused fo
 Releases are built with [goreleaser](https://goreleaser.com) using `.goreleaser.yaml`. Targets: Linux, macOS, Windows (amd64/arm64). The release build sets:
 
 ```
--X git.plutolab.org/plutolab/kosh/cmd.AppVersion={{.Version}}
+-X plutolab.org/kosh/cmd.AppVersion={{.Version}}
 ```
 
 `CGO_ENABLED=0` is set so the binary is fully static (the SQLite driver is pure Go via `modernc.org/sqlite`).

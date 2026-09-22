@@ -8,7 +8,7 @@ require (
 	golang.org/x/term v0.46.0
 	golang.org/x/text v0.42.0
 	modernc.org/sqlite v1.59.0
-	plutolab.org/klip v0.1.0
+	plutolab.org/klip v0.1.1
 )
 
 require (

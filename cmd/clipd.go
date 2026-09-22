@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"os"
@@ -35,9 +36,16 @@ func RunClipDCmd(ctx *app.Context) error {
 		slog.Debug("failed to read payload from stdin", "error", err)
 		return err
 	}
+	timeout := time.Duration(ctx.Config.SecretClearTimeout) * time.Second
 	clipboard := klip.NewClipboard()
+
+	// cancel clear 30 seconds after required duration in case the clear step hangs
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), timeout+(30*time.Second))
+	defer cancel()
+
 	return clipboard.ClearAfter(
+		timeoutCtx,
 		klip.DirectCompare(payload),
-		time.Duration(ctx.Config.SecretClearTimeout)*time.Second,
+		timeout,
 	)
 }
